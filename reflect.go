@@ -1,10 +1,7 @@
-package crud
+package mx
 
 import (
-	"net/http"
 	"reflect"
-	"strings"
-	"sync"
 )
 
 //
@@ -28,23 +25,8 @@ const (
 	BeforeDelete = "BeforeDelete"
 	AfterDelete  = "AfterDelete"
 
-	CreatedAt = "created_at"
-	UpdatedAt = "updated_at"
-	DeletedAt = "deleted_at"
 	IsDeleted = "is_deleted"
-
-	Ctime = "ctime"
-	Utime = "utime"
-	Dtime = "dtime"
 )
-
-// DBColums 多列
-var DBColums map[string]Column
-var dbcM sync.Mutex
-
-func init() {
-	DBColums = make(map[string]Column)
-}
 
 // Model 需要有一个将反射封装起来
 type Model struct {
@@ -174,25 +156,4 @@ func isBlank(value reflect.Value) bool {
 	}
 
 	return reflect.DeepEqual(value.Interface(), reflect.Zero(value.Type()).Interface())
-}
-
-// 根据反射设置值，如果返回nil则说明参数错误。
-func parseRequest(v interface{}, r *http.Request, method string) map[string]interface{} {
-	r.FormValue("")
-	m := make(map[string]interface{})
-	for _, f := range NewModel(v).Fields() {
-		_, ok := r.Form[f.DBName()]
-		if f.IsRequire(method) && !ok {
-			return nil
-		}
-		if ok {
-			m[f.DBName()] = r.FormValue(f.DBName())
-		}
-	}
-	for k := range r.Form {
-		if strings.Contains(k, "_id") {
-			m[k] = r.FormValue(k)
-		}
-	}
-	return m
 }

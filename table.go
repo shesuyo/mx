@@ -1,4 +1,4 @@
-package crud
+package mx
 
 import (
 	"fmt"
@@ -77,9 +77,6 @@ func (t *Table) Create(m map[string]interface{}, checks ...string) (int, error) 
 		if t.Query(fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE %s", t.tableName, strings.Join(names, "AND ")), values...).Int() > 0 {
 			return 0, ErrInsertRepeat
 		}
-	}
-	if t.tableColumns[t.tableName].HaveColumn(CreatedAt) {
-		m[CreatedAt] = time.Now().Format(TimeFormat)
 	}
 	ks, vs := ksvs(m)
 	id, err := t.Exec(fmt.Sprintf("INSERT INTO `%s` (%s) VALUES (%s)", t.tableName, strings.Join(ks, ","), argslice(len(ks))), vs...).LastInsertId()

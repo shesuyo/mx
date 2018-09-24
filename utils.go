@@ -1,4 +1,4 @@
-package crud
+package mx
 
 import (
 	"encoding/json"
@@ -141,19 +141,26 @@ func argslice(l int) string {
 }
 
 // structToMap 将结构体转换成map[string]interface{}
-func structToMap(v reflect.Value) map[string]interface{} {
+func structToMap(v reflect.Value, table *Table) map[string]interface{} {
 	v = reflect.Indirect(v)
 	t := v.Type()
 	m := map[string]interface{}{}
 
 	for i, num := 0, v.NumField(); i < num; i++ {
-		tag := t.Field(i).Tag
-		if tag.Get("crud") != "ignore" && tag.Get("crud") != "-" {
-			if tag.Get("dbname") != "" {
-				m[tag.Get("dbname")] = v.Field(i).Interface()
-			} else {
-				m[ToDBName(t.Field(i).Name)] = v.Field(i).Interface()
+		mn := t.Field(i).Tag.Get("mn")
+		fieldName := mn
+		if mn != "-" {
+			if fieldName == "" {
+				fieldName = ToDBName(t.Field(i).Name)
 			}
+			fieldVal := v.Field(i).Interface()
+			if mn == "id" && fieldVal == "" {
+				continue
+			}
+			if table.Columns[mn].DataType == "datetime" && fieldVal == "" {
+				continue
+			}
+			m[fieldName] = fieldVal
 		}
 	}
 
@@ -257,4 +264,17 @@ func Int(v interface{}) int {
 		i, _ = strconv.Atoi(fmt.Sprintf("%v", v))
 	}
 	return i
+}
+
+func callFunc(v reflect.Value, name string) error {
+	f := v.MethodByName(name)
+	if f.IsValid() {
+		vs := f.Call(nil)
+		if len(vs) == 1 {
+			if err, ok := vs[0].Interface().(error); ok {
+				return err
+			}
+		}
+	}
+	return nil
 }

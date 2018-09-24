@@ -1,4 +1,4 @@
-// Package crud is a super crud lib
+// Package mx is a mysql orm lib
 
 // It is help us to use mysql
 
@@ -9,10 +9,6 @@
 // Delete
 // Update
 // Read
-// FormCreate
-// FormDelete
-// FormUpdate
-// FormRead
 // SQL查询返回map[string]string
 // SQL查询返回map[string]interface{}
 // SQL将查询的结构映射到结构体中
@@ -28,4 +24,6 @@
 // 支持多数据库
 // 支持分表分库
 
-package crud
+// 提倡复杂的SQL直接写SQL语句，不使用ORM
+
+package mx

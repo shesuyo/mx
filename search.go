@@ -1,4 +1,4 @@
-package crud
+package mx
 
 import (
 	"fmt"

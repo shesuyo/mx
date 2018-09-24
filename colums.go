@@ -1,4 +1,4 @@
-package crud
+package mx
 
 // Columns 用于表示一张表中的列，使用名字作为index，方便查找。
 type Columns map[string]Column

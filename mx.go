@@ -1,4 +1,4 @@
-package crud
+package mx
 
 import (
 	"database/sql"
@@ -50,18 +50,20 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 	var (
 		conf Config
 	)
+
 	if len(confs) > 0 {
 		conf = confs[0]
 	} else {
-
+		conf = DefaultConfig
 	}
+
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
 	db.SetMaxIdleConns(conf.MaxIdleConns)
 	db.SetMaxOpenConns(conf.MaxOpenConns)
-	crud := &DataBase{
+	mx := &DataBase{
 		debug:          false,
 		tableColumns:   make(map[string]Columns),
 		dataSourceName: dataSourceName,
@@ -69,11 +71,11 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		mm:             new(sync.Mutex),
 	}
 
-	crud.Schema = crud.Query("SELECT DATABASE()").String()
-	if crud.Schema == "" {
+	mx.Schema = mx.Query("SELECT DATABASE()").String()
+	if mx.Schema == "" {
 		log.Println("FBI WARNING: 这是一个没有选择数据库的链接。")
 	}
-	tables := crud.Query("SELECT TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,COLUMN_COMMENT,COLUMN_TYPE,DATA_TYPE,IS_NULLABLE FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ?", crud.Schema).RowsMap().MapIndexs("TABLE_NAME")
+	tables := mx.Query("SELECT TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,COLUMN_COMMENT,COLUMN_TYPE,DATA_TYPE,IS_NULLABLE FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ?", mx.Schema).RowsMap().MapIndexs("TABLE_NAME")
 
 	for tableName, cols := range tables {
 		cm := make(map[string]Column)
@@ -88,10 +90,10 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 				IsNullAble: v["IS_NULLABLE"] == "YES",
 			}
 		}
-		crud.tableColumns[tableName] = cm
+		mx.tableColumns[tableName] = cm
 	}
 
-	return crud, nil
+	return mx, nil
 }
 
 /*
@@ -124,9 +126,6 @@ func (db *DataBase) getColumns(tableName string) Columns {
 			DataType:   v["DATA_TYPE"],
 			IsNullAble: v["IS_NULLABLE"] == "YES",
 		}
-		dbcM.Lock()
-		DBColums[v["COLUMN_NAME"]] = cols[v["COLUMN_NAME"]]
-		dbcM.Unlock()
 	}
 	db.mm.Lock()
 	db.tableColumns[tableName] = cols
@@ -227,33 +226,24 @@ func (db *DataBase) DB() *sql.DB {
 */
 
 // Create 根据相应单个结构体进行创建
+// 一定要是地址
+// 需要检查Before函数
+// 需要按需转换成map(考虑ignore)
+// 需要检查After函数
+// TODO 一次性创建整个嵌套结构体
 func (db *DataBase) Create(obj interface{}) (int, error) {
-	//一定要是地址
-	//需要检查Before函数
-	//需要按需转换成map(考虑ignore)
-	//需要检查After函数
-	//TODO 一次性创建整个嵌套结构体
+
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
 		return 0, ErrMustBeAddr
 	}
-	beforeFunc := v.MethodByName(BeforeCreate)
-	afterFunc := v.MethodByName(AfterCreate)
 	tableName := getStructDBName(v)
 
-	// 这里的处理应该是有才处理，没有不管。
-	if beforeFunc.IsValid() {
-		vals := beforeFunc.Call(nil)
-		if len(vals) == 1 {
-			if err, ok := vals[0].Interface().(error); ok {
-				if err != nil {
-					return 0, err
-				}
-			}
-		}
+	if err := callFunc(v, BeforeCreate); err != nil {
+		return 0, err
 	}
-	m := structToMap(v)
 	table := db.Table(tableName)
+	m := structToMap(v, table)
 	for k, v := range m {
 		if k == "id" && v == "" {
 			delete(m, "id")
@@ -269,9 +259,7 @@ func (db *DataBase) Create(obj interface{}) (int, error) {
 		rID.SetInt(int64(id))
 	}
 
-	if afterFunc.IsValid() {
-		afterFunc.Call(nil)
-	}
+	callFunc(v, AfterCreate)
 	return id, err
 }
 
@@ -287,9 +275,18 @@ func (db *DataBase) Creates(objs interface{}) ([]int, error) {
 	}
 
 	for i, num := 0, v.Elem().Len(); i < num; i++ {
-		id, err := db.Create(v.Elem().Index(i).Addr().Interface())
+		obj := v.Elem().Index(i).Addr()
+		beforeCreate := obj.MethodByName(BeforeCreate)
+		if beforeCreate.IsValid() {
+			beforeCreate.Call(nil)
+		}
+		id, err := db.Create(obj.Interface())
 		if err != nil {
 			return ids, err
+		}
+		afterCreate := obj.MethodByName(AfterCreate)
+		if afterCreate.IsValid() {
+			afterCreate.Call(nil)
 		}
 
 		ids = append(ids, int(id))
@@ -350,21 +347,16 @@ func (db *DataBase) Update(obj interface{}) error {
 	if v.Kind() != reflect.Ptr {
 		return ErrMustBeAddr
 	}
-	beforeFunc := v.MethodByName(BeforeUpdate)
-	afterFunc := v.MethodByName(AfterUpdate)
-	if beforeFunc.IsValid() {
-		beforeFunc.Call(nil)
-	}
+	callFunc(v, BeforeUpdate)
 	tableName := getStructDBName(v)
-	m := structToMap(v)
-	err := db.Table(tableName).Update(m)
+	table := db.Table(tableName)
+	m := structToMap(v, table)
+	err := table.Update(m)
 
 	if err != nil {
 		return err
 	}
-	if afterFunc.IsValid() {
-		afterFunc.Call(nil)
-	}
+	callFunc(v, AfterUpdate)
 	return nil
 }
 
@@ -543,7 +535,7 @@ func (db *DataBase) FindAll(v interface{}, args ...interface{}) error {
 	//首先查找字段，然后再查找结构体和Slice
 	/*
 		首先实现结构体
-		//不处理指针
+		不处理结构体里面的指针
 
 	*/
 	rv := reflect.ValueOf(v).Elem()

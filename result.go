@@ -1,4 +1,4 @@
-package crud
+package mx
 
 import (
 	"database/sql"
@@ -11,14 +11,6 @@ import (
 )
 
 // SQLRows 查询后的返回结果
-/*
-	对于数据库底层的封装处理的时候一定要判断err是否为nil，因为当err为nil的时候sql.Rows也是nil，这样操作的时候就很容易出现错误了。
-	if r.err != nil {
-		return r.err
-	}
-
-	如果不使用连接池，出现Too many connections错误在并发量很大的时候很频繁。
-*/
 type SQLRows struct {
 	rows *sql.Rows
 	err  error
@@ -124,44 +116,16 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 	}
 
 	for r.rows.Next() {
-
-		// 数据库查询的一列
 		rowMap := make(map[string]interface{})
 
-		/*
-			用于放到底层去取数据的容器
-			type RawBytes []byte
-		*/
-		// var b sql.RawBytes = []byte("abc")
-		// _ = string(b)
 		containers := make([]interface{}, 0, len(cols))
 		for i := 0; i < cap(containers); i++ {
-			col := DBColums[cols[i]]
-			switch col.DataType {
-			case "int", "tinyint", "smallint", "mediumint", "integer":
-				var v int
-				containers = append(containers, &v)
-			case "varchar", "bigint", "timestamp":
-				var v string
-				containers = append(containers, &v)
-			case "bit":
-				fallthrough
-			default:
-				containers = append(containers, &sql.RawBytes{})
-			}
-
+			containers = append(containers, &sql.RawBytes{})
 		}
 		r.rows.Scan(containers...)
 		for i := 0; i < len(cols); i++ {
-			//rowMap[cols[i]] = string(*containers[i].(*[]byte))
 			for i := 0; i < cap(containers); i++ {
-				col := DBColums[cols[i]]
-				switch col.DataType {
-				case "int", "tinyint", "smallint", "mediumint", "integer", "varchar", "bigint", "timestamp":
-					rowMap[cols[i]] = reflect.ValueOf(containers[i]).Elem().Interface()
-				default:
-					rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
-				}
+				rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
 			}
 		}
 		rs = append(rs, rowMap)
@@ -479,15 +443,6 @@ func (rm RowsMap) EachMod(f func(RowMap)) RowsMap {
 	}
 	return rm
 }
-
-// GroupByField group by field
-// func (rm RowsMap) GroupByField(field string) map[string][]RowMap {
-// 	gm := map[string][]RowMap{}
-// 	for _, v := range rm {
-// 		gm[v[field]] = append(gm[v[field]], v)
-// 	}
-// 	return gm
-// }
 
 // RowsMapGroup 用于对一个字段进行分组
 type RowsMapGroup struct {
