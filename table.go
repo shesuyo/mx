@@ -116,20 +116,22 @@ func (t *Table) Creates(ms []map[string]interface{}) (int, error) {
 }
 
 // Delete 删除
-func (t *Table) Delete(m map[string]interface{}) (int64, error) {
+func (t *Table) Delete(m map[string]interface{}) (int, error) {
 	if len(m) == 0 {
 		return 0, ErrNoDeleteKey
 	}
 	ks, vs := ksvs(m, " = ? ")
 	if t.tableColumns[t.tableName].HaveColumn(IsDeleted) {
-		return t.Exec(fmt.Sprintf("UPDATE `%s` SET is_deleted = '1', deleted_at = '%s' WHERE %s", t.tableName, time.Now().Format(TimeFormat), strings.Join(ks, "AND")), vs...).RowsAffected()
+		af, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET is_deleted = '1', deleted_at = '%s' WHERE %s", t.tableName, time.Now().Format(TimeFormat), strings.Join(ks, "AND")), vs...).RowsAffected()
+		return int(af), err
 	}
-	return t.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.tableName, strings.Join(ks, "AND")), vs...).RowsAffected()
+	af, err := t.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.tableName, strings.Join(ks, "AND")), vs...).RowsAffected()
+	return int(af), err
 }
 
 // Update 更新
 // 如果map里面有id的话会自动删除id，然后使用id来作为更新的条件。
-func (t *Table) Update(m map[string]interface{}, keys ...string) error {
+func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 	// 因为会删除id，所以使用的时候要copy一个map
 	// m := copyMap(mo)
 	id := m["id"]
@@ -144,7 +146,7 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) error {
 	for _, key := range keys {
 		val, ok := m[key]
 		if !ok {
-			return ErrNoUpdateKey
+			return 0, ErrNoUpdateKey
 		}
 		keysValue = append(keysValue, val)
 		delete(m, key)
@@ -157,11 +159,11 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) error {
 		vs = append(vs, val)
 	}
 	m["id"] = id
-	_, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1", t.tableName, strings.Join(ks, ","), strings.Join(whereks, "AND")), vs...).RowsAffected()
+	af, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1", t.tableName, strings.Join(ks, ","), strings.Join(whereks, "AND")), vs...).RowsAffected()
 	if err != nil {
-		return ErrSQLSyntaxc
+		return 0, ErrSQLSyntaxc
 	}
-	return nil
+	return int(af), err
 }
 
 // CreateOrUpdate 创建或者更新
@@ -171,7 +173,8 @@ func (t *Table) CreateOrUpdate(m map[string]interface{}, keys ...string) error {
 		if err == ErrInsertRepeat {
 			// 在len(map) <= len(keys)的时候可以不用执行更新操作，因为没有任何东西需要更新。
 			if len(m) > len(keys) {
-				return t.Update(m, keys...)
+				_, err := t.Update(m, keys...)
+				return err
 			}
 			return nil
 		}

@@ -351,7 +351,7 @@ func (db *DataBase) Update(obj interface{}) error {
 	tableName := getStructDBName(v)
 	table := db.Table(tableName)
 	m := structToMap(v, table)
-	err := table.Update(m)
+	_, err := table.Update(m)
 
 	if err != nil {
 		return err

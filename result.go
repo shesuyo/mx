@@ -230,6 +230,21 @@ func (rm RowMap) Int(field string, def ...int) int {
 	return 0
 }
 
+// Int32 return int32 field
+func (rm RowMap) Int32(field string, def ...int32) int32 {
+	val, ok := rm[field]
+	if ok {
+		i, err := strconv.Atoi(val)
+		if err == nil {
+			return int32(i)
+		}
+	}
+	if len(def) > 0 {
+		return def[0]
+	}
+	return 0
+}
+
 // Float64 return float64
 func (rm RowMap) Float64(field string, def ...float64) float64 {
 	val, ok := rm[field]
