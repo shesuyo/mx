@@ -156,6 +156,12 @@ func (s *Search) Group(field ...string) *Search {
 	return s
 }
 
+// Having having
+func (s *Search) Having(field ...string) *Search {
+	s.groupConditions = append(s.groupConditions, field...)
+	return s
+}
+
 // Parse 将各个条件整合成可以查询的SQL语句和参数
 // SELECT COUNT(*) AS total,cid
 // FROM report
