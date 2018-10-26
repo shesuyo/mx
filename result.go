@@ -27,8 +27,8 @@ type (
 	RowMapInterface map[string]interface{}
 )
 
-// Pluge  获取某一列的interface类型
-func (r *SQLRows) Pluge(cn string) []interface{} {
+// Pluck  获取某一列的interface类型
+func (r *SQLRows) Pluck(cn string) []interface{} {
 	if r.err != nil {
 		return []interface{}{}
 	}
@@ -40,8 +40,8 @@ func (r *SQLRows) Pluge(cn string) []interface{} {
 	return out
 }
 
-// PlugeInt 获取某一列的int类型
-func (r *SQLRows) PlugeInt(cn string) []int {
+// PluckInt 获取某一列的int类型
+func (r *SQLRows) PluckInt(cn string) []int {
 	if r.err != nil {
 		return []int{}
 	}
@@ -58,8 +58,8 @@ func (r *SQLRows) PlugeInt(cn string) []int {
 	return out
 }
 
-// PlugeStinrg 获取某一列的string类型
-func (r *SQLRows) PlugeStinrg(cn string) []string {
+// PluckString 获取某一列的string类型
+func (r *SQLRows) PluckString(cn string) []string {
 	if r.err != nil {
 		return []string{}
 	}
@@ -821,6 +821,15 @@ func (rm RowMapInterface) RowMap() RowMap {
 		r[k] = fmt.Sprintf("%v", v)
 	}
 	return r
+}
+
+// Pluck pluck from RowsMapInterface
+func (rs RowsMapInterface) Pluck(field string) []interface{} {
+	out := make([]interface{}, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, r[field])
+	}
+	return out
 }
 
 // RowsMap []map[string]string 所有类型都将返回字符串类型
