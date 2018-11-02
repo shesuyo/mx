@@ -233,7 +233,11 @@ func (t *Table) WhereNotEmpty(query, arg string) *Table {
 
 // WherePeriod  [st,et)
 func (t *Table) WherePeriod(field, st, et string) *Table {
-	return t.Clone().Search.Where(fmt.Sprintf("%s >= ? AND %s < ?", field, field), st, et).table
+	sp, ep, err := periodParse(st, et)
+	if err != nil {
+		return t
+	}
+	return t.Clone().Search.Where(fmt.Sprintf("%s >= ? AND %s < ?", field, field), sp, ep).table
 }
 
 // WhereStartEndDay DATE_FORMAT(field, '%Y-%m-%d') >= startTime AND DATE_FORMAT(field, '%Y-%m-%d') <= endTime

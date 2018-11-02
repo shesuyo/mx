@@ -2,6 +2,7 @@ package mx
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -257,12 +258,82 @@ func copyMap(m map[string]interface{}) map[string]interface{} {
 // WhereTimeParse 将时间段转换成对应SQL
 func WhereTimeParse(field, ts string, years, months, days int) string {
 	// (createdtime >= '2018-01-01 00:00:00' AND createdtime < '2018-01-02 00:00:00')
-	var a, b, format string
-	format = "2006-01-02 15:04:05"[:len(ts)]
-	t, _ := time.ParseInLocation(format, ts, time.Local)
+	var a, b string
+	t, _ := timeParse(ts)
 	a = t.Format("2006-01-02 15:04:05")
 	b = t.AddDate(years, months, days).Format("2006-01-02 15:04:05")
 	return fmt.Sprintf("(%s >= '%s' AND %s < '%s')", field, a, field, b)
+}
+
+const (
+	timeFormat = "2006-01-02 15:04:05"
+
+	stPadding = "2000-01-01 00:00:00"
+	etPadding = "2999-12-31 23:59:59"
+)
+
+var (
+	errPeriodParse = errors.New("period parse err")
+)
+
+// timeParse time parse from string
+func timeParse(ts string) (time.Time, error) {
+	format := timeFormat[:len(ts)]
+	t, err := time.ParseInLocation(format, ts, time.Local)
+	return t, err
+}
+
+func periodParse(st, et string) (string, string, error) {
+	stl := len(st)
+	etl := len(et)
+	if stl == 0 {
+		return "", "", errPeriodParse
+	}
+	sp := st + stPadding[stl:]
+	var ep string
+	spt, _ := timeParse(sp)
+	if etl == 0 {
+		bt := spt
+		switch stl {
+		case 4:
+			ep = bt.AddDate(1, 0, 0).Format(timeFormat)
+		case 7:
+			ep = bt.AddDate(0, 1, 0).Format(timeFormat)
+		case 10:
+			ep = bt.AddDate(0, 0, 1).Format(timeFormat)
+		case 13:
+			ep = bt.Add(1 * time.Hour).Format(timeFormat)
+		case 16:
+			ep = bt.Add(1 * time.Minute).Format(timeFormat)
+		case 19:
+			ep = bt.Add(1 * time.Second).Format(timeFormat)
+		default:
+			return "", "", errPeriodParse
+		}
+	} else {
+		if stl != etl {
+			return "", "", errPeriodParse
+		}
+		ept, _ := timeParse(et)
+		bt := ept
+		switch stl {
+		case 4:
+			ep = bt.AddDate(1, 0, 0).Format(timeFormat)
+		case 7:
+			ep = bt.AddDate(0, 1, 0).Format(timeFormat)
+		case 10:
+			ep = bt.AddDate(0, 0, 1).Format(timeFormat)
+		case 13:
+			ep = bt.Add(1 * time.Hour).Format(timeFormat)
+		case 16:
+			ep = bt.Add(1 * time.Minute).Format(timeFormat)
+		case 19:
+			ep = bt.Add(1 * time.Second).Format(timeFormat)
+		default:
+			return "", "", errPeriodParse
+		}
+	}
+	return sp, ep, nil
 }
 
 func byteString(b []byte) string {
