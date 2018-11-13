@@ -159,7 +159,14 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 		vs = append(vs, val)
 	}
 	m["id"] = id
-	af, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1", t.tableName, strings.Join(ks, ","), strings.Join(whereks, "AND")), vs...).RowsAffected()
+	af, err := t.Exec(
+		fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1",
+			t.tableName,
+			strings.Join(ks, ","),
+			strings.Join(whereks, "AND"),
+		),
+		vs...,
+	).RowsAffected()
 	if err != nil {
 		return 0, ErrSQLSyntaxc
 	}
@@ -369,14 +376,14 @@ func (t *Table) Fields(args ...string) *Table {
 	return t.Clone().Search.Fields(args...).table
 }
 
-// FieldCount equal Fields("COUNT(1) AS total")
+// FieldCount equal Fields("COUNT(*) AS total")
 func (t *Table) FieldCount(as ...string) *Table {
 	asWhat := "total"
 	if len(as) > 0 {
 		sp := strings.Split(as[0], " ")
 		asWhat = sp[0]
 	}
-	return t.Clone().Search.Fields("COUNT(1) AS " + asWhat).table
+	return t.Clone().Search.Fields("COUNT(*) AS " + asWhat).table
 }
 
 // Group GROUP BY
@@ -393,7 +400,7 @@ func (t *Table) Having(query string, args ...interface{}) *Table {
 func (t *Table) Count() int {
 	s := t.Clone().Search
 	var count int
-	s.fields = []string{"COUNT(1)"}
+	s.fields = []string{"COUNT(*)"}
 	query, args := s.Parse()
 	s.table.Query(query, args...).Find(&count)
 	return count

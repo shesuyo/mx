@@ -340,21 +340,6 @@ func (s *Search) warpFieldSingel(field string) (warpStr string, tablename string
 
 //结果展示
 
-// RawMap RawMap
-func (s *Search) RawMap() RowMap {
-	return s.RowMap()
-}
-
-// RawsMap RawsMap
-func (s *Search) RawsMap() RowsMap {
-	return s.RowsMap()
-}
-
-// RawsMapInterface RawsMapInterface
-func (s *Search) RawsMapInterface() RowsMapInterface {
-	return s.RowsMapInterface()
-}
-
 // RowMap RowMap
 func (s *Search) RowMap() RowMap {
 	nb := (*s).Clone().Limit(1)
