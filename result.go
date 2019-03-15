@@ -16,6 +16,25 @@ type SQLRows struct {
 	err  error
 }
 
+type SQLResult struct {
+	result sql.Result
+	err    error
+}
+
+func (r *SQLResult) LastInsertId() (int64, error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+	return r.result.LastInsertId()
+}
+
+func (r *SQLResult) RowsAffected() (int64, error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+	return r.result.RowsAffected()
+}
+
 type (
 	//RowsMap 多行
 	RowsMap []RowMap

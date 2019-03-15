@@ -81,7 +81,7 @@ func (t *Table) Create(m map[string]interface{}, checks ...string) (int, error) 
 	ks, vs := ksvs(m)
 	id, err := t.Exec(fmt.Sprintf("INSERT INTO `%s` (%s) VALUES (%s)", t.tableName, strings.Join(ks, ","), argslice(len(ks))), vs...).LastInsertId()
 	if err != nil {
-		return 0, ErrSQLSyntaxc
+		return 0, ErrExec
 	}
 	return int(id), nil
 }
@@ -168,7 +168,8 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 		vs...,
 	).RowsAffected()
 	if err != nil {
-		return 0, ErrSQLSyntaxc
+		// 可能是语法，也可能是执行错误。
+		return 0, ErrExec
 	}
 	return int(af), err
 }

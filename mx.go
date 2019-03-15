@@ -18,14 +18,14 @@ var (
 	TimeFormat = "2006-01-02 15:04:05"
 
 	//错误
-	ErrExec = errors.New("执行错误")
-	ErrArgs = errors.New("参数错误")
+	ErrExec = errors.New("SQL执行错误")
+	ErrArgs = errors.New("SQL参数错误")
 
 	ErrInsertRepeat = errors.New("重复插入")
-	ErrSQLSyntaxc   = errors.New("SQL语法错误")
-	ErrInsertData   = errors.New("插入数据库异常")
-	ErrNoUpdateKey  = errors.New("没有更新主键")
-	ErrNoDeleteKey  = errors.New("删除需要条件")
+	// ErrSQLSyntaxc   = errors.New("SQL语法错误")
+	ErrInsertData  = errors.New("插入数据库异常")
+	ErrNoUpdateKey = errors.New("没有更新主键")
+	ErrNoDeleteKey = errors.New("删除需要条件")
 
 	ErrMustBeAddr     = errors.New("必须为值引用")
 	ErrMustBeSlice    = errors.New("必须为Slice")
@@ -207,13 +207,13 @@ func (db *DataBase) Query(sql string, args ...interface{}) *SQLRows {
 }
 
 // Exec 用于底层执行，一般是INSERT INTO、DELETE、UPDATE。
-func (db *DataBase) Exec(sql string, args ...interface{}) sql.Result {
+func (db *DataBase) Exec(sql string, args ...interface{}) *SQLResult {
 	db.LogSQL(sql, args...)
 	ret, err := db.DB().Exec(sql, args...)
 	if err != nil {
 		db.stack(err, sql, args...)
 	}
-	return ret
+	return &SQLResult{result: ret, err: err}
 }
 
 // DB 返回一个DB链接，查询后一定要关闭col，而不能关闭*sql.DB。
