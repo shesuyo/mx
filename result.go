@@ -301,6 +301,14 @@ func (rm RowsMap) Sum(field string) int {
 	return sum
 }
 
+func (rm RowsMap) SumFloat(field string, multiple int) int {
+	sum := 0
+	for _, v := range rm {
+		sum += int(v.Float64(field) * float64(multiple))
+	}
+	return sum
+}
+
 // SumByFieldEq SumByFieldEq
 func (rm RowsMap) SumByFieldEq(field, eqField, eq string) int {
 	sum := 0
@@ -521,8 +529,8 @@ func (rm RowsMap) GroupByField(field string) []RowsMapGroup {
 
 // RowsWrap WarpByField
 type RowsWrap struct {
-	Key string   `json:"key"`
-	Val []RowMap `json:"val"`
+	Key string  `json:"key"`
+	Val RowsMap `json:"val"`
 }
 
 // RowsWraps []RowsWrap
