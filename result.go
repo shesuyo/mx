@@ -578,6 +578,8 @@ type MultiWarp struct {
 	tailID string
 }
 
+type MultiWarps []MultiWarp
+
 // MultiWarpByField multi level warp by field
 // fields id1,key1,id2,key2,id3,key3
 // 先传id再传字段
@@ -592,7 +594,7 @@ type MultiWarp struct {
 3 2 2
 4 2 3
 */
-func (rm RowsMap) MultiWarpByField(fields ...string) []MultiWarp {
+func (rm RowsMap) MultiWarpByField(fields ...string) MultiWarps {
 
 	length := len(fields)
 
