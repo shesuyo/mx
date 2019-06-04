@@ -763,16 +763,11 @@ func (rm RowsMap) PluckInt(key string) []int {
 
 // Unique unique field
 func (rm RowsMap) Unique(field string) RowsMap {
+	uniqueMap := make(map[string]bool, 10)
 	urm := RowsMap{}
 	for i := 0; i < len(rm); i++ {
-		isUnique := true
-		for j := 0; j < len(urm); j++ {
-			if urm[j][field] == rm[i][field] {
-				isUnique = false
-				break
-			}
-		}
-		if isUnique {
+		if !uniqueMap[rm[i][field]] {
+			uniqueMap[rm[i][field]] = true
 			urm = append(urm, rm[i])
 		}
 	}
