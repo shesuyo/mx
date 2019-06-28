@@ -115,6 +115,7 @@ func (f *Field) IsIgnore() bool {
 }
 
 // 获取结构体对应的数据库名
+// func getStructDBName(db *DataBase, v reflect.Value) string {
 func getStructDBName(v reflect.Value) string {
 	v = reflect.Indirect(v)
 	var dbName string

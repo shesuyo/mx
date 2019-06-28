@@ -56,6 +56,11 @@ func (t *Table) IDIn(ids ...interface{}) *SQLRows {
 	return t.Query(fmt.Sprintf("SELECT * FROM `%s` WHERE id in (%s)", t.tableName, argslice(len(ids))), ids...)
 }
 
+// IDRow 根据ID返回RowMap
+func (t *Table) IDRow(id interface{}) RowMap {
+	return t.Query(fmt.Sprintf("SELECT * FROM `%s` WHERE id=?", t.tableName), id).RowMap()
+}
+
 /*
 	map[string]interface{} 增删改查
 */

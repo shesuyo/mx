@@ -382,6 +382,7 @@ func (db *DataBase) Updates(objs interface{}) (int, error) {
 // Find 将查找数据放到结构体里面
 // 如果不传条件则是查找所有人
 // Read Find Select
+// deprecated
 func (db *DataBase) Find(obj interface{}, args ...interface{}) error {
 	var (
 		v = reflect.ValueOf(obj)
@@ -416,9 +417,9 @@ func (db *DataBase) Find(obj interface{}, args ...interface{}) error {
 			tableName = getStructDBName(elem)
 		}
 
-		if len(args) == 1 {
+		if id := Int(args[0]); len(args) == 1 && id != 0 {
 			where += " AND id = ? "
-			args = append(args, args[0])
+			args = append(args, id)
 		} else if len(args) > 1 {
 			where += "AND " + args[0].(string)
 		} else {
