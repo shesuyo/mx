@@ -91,7 +91,7 @@ func (t *Table) Create(m map[string]interface{}, checks ...string) (int, error) 
 	return int(id), nil
 }
 
-// Creates 创建多列
+// Creates 创建多条数据
 func (t *Table) Creates(ms []map[string]interface{}) (int, error) {
 	if len(ms) == 0 {
 		return 0, nil
@@ -244,6 +244,16 @@ func (t *Table) WhereNotEmpty(query, arg string) *Table {
 	return t.Clone().Search.Where(query, arg).table
 }
 
+// WhereTime where time
+func (t *Table) WhereTime(field string, tm Time) *Table {
+	tm.Parse()
+	nt := t.Clone().Search.Where(fmt.Sprintf("%s >= ? AND %s <= ?", field, field), tm.St, tm.Et).table
+	if tm.Stime != "" {
+		nt = nt.WhereStartEndTime(field, tm.Stime, tm.Etime)
+	}
+	return nt
+}
+
 // WherePeriod  [st,et)
 func (t *Table) WherePeriod(field, st, et string) *Table {
 	sp, ep, err := periodParse(st, et)
@@ -372,6 +382,16 @@ func (t *Table) OrderBy(field string, isDESC ...bool) *Table {
 // Limit LIMIT
 func (t *Table) Limit(n interface{}) *Table {
 	return t.Clone().Search.Limit(n).table
+}
+
+// Offset OFFSET
+func (t *Table) Offset(n interface{}) *Table {
+	return t.Clone().Search.Offset(n).table
+}
+
+// Page page => limit & offset
+func (t *Table) Page(limit, page int) *Table {
+	return t.Clone().Search.Limit(limit).Offset((page - 1) * limit).table
 }
 
 // Fields fields
