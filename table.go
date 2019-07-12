@@ -431,3 +431,41 @@ func (t *Table) Count() int {
 	s.table.Query(query, args...).Find(&count)
 	return count
 }
+
+// FullMember
+// 传入进来的数组，是这个关键属性的所有成员。
+// 如果没有关键属性，则关键属性过滤后为整个表。
+func (t *Table) FullMember(members []map[string]string, group string, groupValue interface{}, key string) error {
+	var err error
+	memberCheckMap := make(map[string]bool, len(members))
+	for _, member := range members {
+		memberCheckMap[member[key]] = true
+	}
+	oData := t.Fields("id", key).Where(group+" = ?", groupValue).RowsMap()
+	oldCheckMap := make(map[string]bool, len(oData))
+	for _, r := range oData {
+		oldCheckMap[r[key]] = true
+	}
+	for _, r := range oData {
+		if !memberCheckMap[r[key]] {
+			_, err = t.Delete(map[string]interface{}{"id": r["id"]})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, r := range members {
+		if !oldCheckMap[r[key]] {
+			m := make(map[string]interface{}, 0)
+			for k, v := range r {
+				m[k] = v
+			}
+			m[group] = groupValue
+			_, err = t.Create(m)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
