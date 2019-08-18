@@ -2,6 +2,7 @@ package mx
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -867,6 +868,26 @@ func (rs RowsMapInterface) Pluck(field string) []interface{} {
 	return out
 }
 
+// ToStruct to struct
+func (r *SQLRows) ToStruct(v interface{}) error {
+	rv := reflect.Indirect(reflect.ValueOf(v))
+	if !rv.CanAddr() {
+		return errors.New("Can't addr.")
+	}
+	rt := rv.Type()
+	switch rt.Kind() {
+	case reflect.Struct:
+		rm := r.RowMap()
+		setStruct(rv, rt, rm)
+	case reflect.Slice:
+	default:
+		fmt.Println(rt.Kind())
+	}
+	// reflect.Struct
+	// reflect.Slice
+	return nil
+}
+
 // RowsMap []map[string]string 所有类型都将返回字符串类型
 func (r *SQLRows) RowsMap() RowsMap {
 	rs := make([]RowMap, 0) //为了JSON输出的时候为[]
@@ -1045,7 +1066,6 @@ func (r *SQLRows) setValue(v reflect.Value, i interface{}) {
 		default:
 			v.Set(reflect.ValueOf(i))
 		}
-
 	}
 }
 

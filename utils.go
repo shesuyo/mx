@@ -439,3 +439,32 @@ func (t *Time) Parse() {
 		}
 	}
 }
+
+func setReflectValue(v reflect.Value, i interface{}) {
+	if i != nil && v.Interface() != nil {
+		switch v.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			v.Set(reflect.ValueOf(Int(i)))
+		case reflect.String:
+			v.Set(reflect.ValueOf(String(i)))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			v.SetUint(uint64(Int(i)))
+		default:
+			v.Set(reflect.ValueOf(i))
+		}
+	}
+}
+
+func setStruct(v reflect.Value, t reflect.Type, r RowMap) error {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		sn := f.Name
+		if f.Anonymous {
+			embedV := v.FieldByName(sn)
+			setStruct(embedV, embedV.Type(), r)
+		} else {
+			setReflectValue(v.FieldByName(sn), r[toDBName(sn)])
+		}
+	}
+	return nil
+}
