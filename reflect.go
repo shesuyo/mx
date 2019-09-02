@@ -28,6 +28,10 @@ const (
 	IsDeleted = "is_deleted"
 )
 
+type AfterFinder interface {
+	AfterFind() error
+}
+
 // Model 需要有一个将反射封装起来
 type Model struct {
 	fields []Field

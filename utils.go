@@ -352,6 +352,10 @@ func String(v interface{}) string {
 		s = strconv.Itoa(v)
 	case int64:
 		s = strconv.Itoa(int(v))
+	case []byte:
+		s = *(*string)(unsafe.Pointer(&v))
+	case byte:
+		s = string(v)
 	default:
 		s = fmt.Sprintf("%v", v)
 	}
@@ -378,6 +382,23 @@ func Int(v interface{}) int {
 		i = int(v)
 	case int32:
 		i = int(v)
+	case []byte:
+		if len(v) == 0 {
+			return 0
+		}
+		isNagative := false
+		startIdx := 0
+		if v[0] == '-' {
+			startIdx++
+			isNagative = true
+		}
+		for j := startIdx; j < len(v); j++ {
+			i *= 10
+			i += int(v[j] - '0')
+		}
+		if isNagative {
+			i = -i
+		}
 	default:
 		i, _ = strconv.Atoi(fmt.Sprintf("%v", v))
 	}
@@ -440,31 +461,19 @@ func (t *Time) Parse() {
 	}
 }
 
-func setReflectValue(v reflect.Value, i interface{}) {
-	if i != nil && v.Interface() != nil {
+func setReflectValue(v reflect.Value, bs []byte) {
+	if v.Interface() != nil {
 		switch v.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			v.Set(reflect.ValueOf(Int(i)))
+			v.Set(reflect.ValueOf(Int(bs)))
 		case reflect.String:
-			v.Set(reflect.ValueOf(String(i)))
+			v.Set(reflect.ValueOf(String(bs)))
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			v.SetUint(uint64(Int(i)))
+			v.SetUint(uint64(Int(bs)))
+		case reflect.Struct, reflect.Slice:
+			json.Unmarshal(bs, v.Addr().Interface())
 		default:
-			v.Set(reflect.ValueOf(i))
+			v.Set(reflect.ValueOf(String(bs)))
 		}
 	}
-}
-
-func setStruct(v reflect.Value, t reflect.Type, r RowMap) error {
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		sn := f.Name
-		if f.Anonymous {
-			embedV := v.FieldByName(sn)
-			setStruct(embedV, embedV.Type(), r)
-		} else {
-			setReflectValue(v.FieldByName(sn), r[toDBName(sn)])
-		}
-	}
-	return nil
 }

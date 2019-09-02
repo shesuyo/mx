@@ -2,7 +2,6 @@ package mx
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -869,24 +868,34 @@ func (rs RowsMapInterface) Pluck(field string) []interface{} {
 }
 
 // ToStruct to struct
-func (r *SQLRows) ToStruct(v interface{}) error {
-	rv := reflect.Indirect(reflect.ValueOf(v))
-	if !rv.CanAddr() {
-		return errors.New("Can't addr.")
-	}
-	rt := rv.Type()
-	switch rt.Kind() {
-	case reflect.Struct:
-		rm := r.RowMap()
-		setStruct(rv, rt, rm)
-	case reflect.Slice:
-	default:
-		fmt.Println(rt.Kind())
-	}
-	// reflect.Struct
-	// reflect.Slice
-	return nil
-}
+// func (r *SQLRows) ToStruct(v interface{}) error {
+// 	rvp := reflect.ValueOf(v)
+// 	rv := reflect.Indirect(rvp)
+// 	if !rv.CanAddr() {
+// 		return errors.New("Can't addr.")
+// 	}
+// 	rt := rv.Type()
+// 	switch rt.Kind() {
+// 	case reflect.Struct:
+// 		cols, data := r.TripleByte()
+// 		if len(data) > 0 {
+// 			nss, err := setStruct(rv, rt, cols, data[0])
+// 			if err != nil {
+// 				return err
+// 			}
+// 			for _, sn := range nss {
+// 				_ = sn
+// 			}
+// 			if af, ok := v.(AfterFinder); ok {
+// 				return af.AfterFind()
+// 			}
+// 		}
+// 	case reflect.Slice:
+// 	default:
+// 		return errors.New("Unsupport Type " + rt.Kind().String())
+// 	}
+// 	return nil
+// }
 
 // RowsMap []map[string]string 所有类型都将返回字符串类型
 func (r *SQLRows) RowsMap() RowsMap {
@@ -960,6 +969,39 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 			} else {
 				result[i] = *(*string)(unsafe.Pointer(&raw))
 			}
+		}
+		datas = append(datas, result)
+	}
+	m := make(map[string]int, len(cols))
+	for k, v := range cols {
+		m[v] = k
+	}
+	return m, datas
+}
+
+func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
+	cols := make([]string, 0)
+	datas := make([][][]byte, 0)
+	if r.err != nil {
+		return map[string]int{}, datas
+	}
+	cols, err := r.rows.Columns()
+	if err != nil {
+		return map[string]int{}, datas
+	}
+	rawResult := make([][]byte, len(cols))
+	dest := make([]interface{}, len(cols))
+	for idx := range rawResult {
+		dest[idx] = &rawResult[idx]
+	}
+	for r.rows.Next() {
+		err := r.rows.Scan(dest...)
+		if err != nil {
+			return map[string]int{}, datas
+		}
+		result := make([][]byte, len(cols))
+		for i, raw := range rawResult {
+			result[i] = raw
 		}
 		datas = append(datas, result)
 	}

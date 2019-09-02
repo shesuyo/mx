@@ -383,12 +383,6 @@ func (s *Search) SQLRows() *SQLRows {
 	return s.table.Query(query, args...)
 }
 
-// ToStruct to struct
-func (s *Search) ToStruct(v interface{}) error {
-	query, args := s.Parse()
-	return s.table.Query(query, args...).ToStruct(v)
-}
-
 // RowsMap RowsMap
 func (s *Search) RowsMap() RowsMap {
 	query, args := s.Parse()

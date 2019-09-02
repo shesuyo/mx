@@ -37,7 +37,7 @@ var (
 type DataBase struct {
 	debug bool
 
-	Schema         string //数据库表名
+	Schema         string //数据库名
 	tableColumns   map[string]Columns
 	dataSourceName string
 	db             *sql.DB
@@ -555,13 +555,14 @@ func (db *DataBase) FindAll(v interface{}, args ...interface{}) error {
 
 func (db *DataBase) setStructField(rv reflect.Value) {
 	for i := 0; i < rv.NumField(); i++ {
-		if rv.Field(i).Kind() == reflect.Struct {
+		field := rv.Field(i)
+		switch field.Kind() {
+		case reflect.Struct:
 			con, ok := db.connection(ToDBName(rv.Field(i).Type().Name()), rv)
 			if ok {
 				db.FindAll(rv.Field(i).Addr().Interface(), con...)
 			}
-		}
-		if rv.Field(i).Kind() == reflect.Slice {
+		case reflect.Slice:
 			con, ok := db.connection(ToDBName(rv.Field(i).Type().Elem().Name()), rv)
 			if ok {
 				db.FindAll(rv.Field(i).Addr().Interface(), con...)

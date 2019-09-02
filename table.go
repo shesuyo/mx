@@ -1,7 +1,9 @@
 package mx
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -468,4 +470,281 @@ func (t *Table) FullMember(members []map[string]string, group string, groupValue
 		}
 	}
 	return err
+}
+
+// func (t *Table) ToStruct(v interface{}) error {
+// 	s := t.Search.Clone()
+// 	query, args := s.Parse()
+// 	cols, data := t.Query(query, args...).TripleByte()
+// 	rvp := reflect.ValueOf(v)
+// 	rv := reflect.Indirect(rvp)
+// 	if !rv.CanAddr() {
+// 		return errors.New("Value Can't addr.")
+// 	}
+// 	rt := rv.Type()
+// 	switch rt.Kind() {
+// 	case reflect.Struct:
+// 		if len(data) > 0 {
+// 			nss, err := setStruct(rv, rt, cols, data[0])
+// 			if err != nil {
+// 				return err
+// 			}
+// 			for _, sn := range nss {
+// 				tableName := toDBName(sn)
+// 				if t.haveTablename(tableName) {
+// 					t.Table(tableName)
+// 				}
+// 			}
+// 			if af, ok := v.(AfterFinder); ok {
+// 				return af.AfterFind()
+// 			}
+// 		}
+// 	case reflect.Slice:
+// 	default:
+// 		return errors.New("Unsupport Type " + rt.Kind().String())
+// 	}
+// 	return nil
+// }
+
+func setStruct(v reflect.Value, t reflect.Type, cols map[string]int, data [][]byte) (err error) {
+	for i := 0; i < t.NumField(); i++ {
+		// mx json toDBName(fieldName)
+		var (
+			dbFieldName string
+			f           = t.Field(i)
+			sn          = f.Name
+			tagMx       = f.Tag.Get("mx")
+		)
+		if tagMx != "" {
+			if tagMx == "-" {
+				continue
+			} else {
+				dbFieldName = tagMx
+			}
+		}
+		if f.Anonymous {
+			embedV := v.FieldByName(sn)
+			setStruct(embedV, embedV.Type(), cols, data)
+		} else {
+			if dbFieldName == "" {
+				tagJSON := f.Tag.Get("json")
+				if tagJSON != "" {
+					if strings.Contains(tagJSON, ",") {
+						dbFieldName = strings.Split(tagJSON, ",")[0]
+					} else {
+						dbFieldName = tagJSON
+					}
+				} else {
+					dbFieldName = toDBName(sn)
+				}
+			}
+			if dataIdx, ok := cols[dbFieldName]; ok {
+				// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
+				setReflectValue(v.FieldByName(sn), data[dataIdx])
+			} else {
+				// reflect.Type.Type 是名字 例如 main.Weapon
+				// reflect.Value.Kind() 是类型
+				// nss: not set struct/slice
+				// fmt.Println("NOT SET:", sn, f.Type, v.Kind() == reflect.Struct, dbFieldName)
+			}
+		}
+	}
+	return
+}
+
+func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte) (err error) {
+	rt := ms.rv.Type().Elem()
+	numField := rt.NumField()
+	for j := 0; j < len(datas); j++ {
+		rnp := reflect.New(rt)
+		rn := rnp.Elem()
+		for i := 0; i < numField; i++ {
+			// mx json toDBName(fieldName)
+			var (
+				dbFieldName string
+				f           = rt.Field(i)
+				sn          = f.Name
+				tagMx       = f.Tag.Get("mx")
+			)
+			if tagMx != "" {
+				if tagMx == "-" {
+					continue
+				} else {
+					dbFieldName = tagMx
+				}
+			}
+			if f.Anonymous {
+				embedV := rn.FieldByName(sn)
+				setStruct(embedV, embedV.Type(), cols, datas[j])
+			} else {
+				if dbFieldName == "" {
+					tagJSON := f.Tag.Get("json")
+					if tagJSON != "" {
+						if strings.Contains(tagJSON, ",") {
+							dbFieldName = strings.Split(tagJSON, ",")[0]
+						} else {
+							dbFieldName = tagJSON
+						}
+					} else {
+						dbFieldName = toDBName(sn)
+					}
+				}
+				if dataIdx, ok := cols[dbFieldName]; ok {
+					setReflectValue(rn.FieldByName(sn), datas[j][dataIdx])
+				} else {
+					unsetValue := rn.FieldByName(sn)
+					if t.haveTablename(dbFieldName) {
+						subTable := t.Table(dbFieldName)
+						key := ""
+						guessKey1 := t.tableName + "_id"
+						guessKey2 := t.tableName + "id"
+						if subTable.HaveColumn(guessKey1) {
+							key = guessKey1
+						} else if subTable.HaveColumn(guessKey2) {
+							key = guessKey2
+						}
+						if key != "" {
+							switch unsetValue.Kind() {
+							case reflect.Struct:
+								if err := t.Table(dbFieldName).Where(key+" = ?", Int(datas[j][cols["id"]])).Limit(1).ToStruct(unsetValue.Addr().Interface()); err != nil {
+									return err
+								}
+							case reflect.Slice:
+								if err := t.Table(dbFieldName).Where(key+" = ?", Int(datas[j][cols["id"]])).ToStruct(unsetValue.Addr().Interface()); err != nil {
+									return err
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if method := rnp.MethodByName(AfterFind); method.IsValid() {
+			method.Call(nil)
+		}
+		ms.rv.Set(reflect.Append(ms.rv, rn))
+	}
+	return nil
+}
+
+func (t *Table) ToStruct(v interface{}) error {
+	s := t.Search.Clone()
+	query, args := s.Parse()
+	cols, data := t.Query(query, args...).TripleByte()
+	ms, err := NewModelStruct(v)
+	if err != nil {
+		return err
+	}
+	switch ms.rt.Kind() {
+	case reflect.Struct:
+		if len(data) > 0 {
+			ms.SetStruct(t, cols, data[0])
+		}
+	case reflect.Slice:
+		if len(data) > 0 {
+			ms.setSlice(t, cols, data)
+		}
+	default:
+		return errors.New("Unsupport Type " + ms.rt.Kind().String())
+	}
+	return nil
+}
+
+type ModelStruct struct {
+	v   interface{}
+	rvp reflect.Value
+	rv  reflect.Value
+	rt  reflect.Type
+}
+
+func NewModelStruct(v interface{}) (*ModelStruct, error) {
+	ms := &ModelStruct{
+		v: v,
+	}
+	ms.rvp = reflect.ValueOf(v)
+	// fmt.Println(ms.rvp.Kind(), ms.rvp.CanAddr(), ms.rvp.Elem().CanAddr())
+	if ms.rvp.Kind() != reflect.Ptr {
+		return nil, errors.New("Value Can't Addr.")
+	}
+	ms.rv = ms.rvp.Elem()
+	if !ms.rv.CanAddr() {
+		return nil, errors.New("Value Can't Addr.")
+	}
+	ms.rt = ms.rv.Type()
+	return ms, nil
+}
+
+func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte) error {
+	numField := ms.rt.NumField()
+	for i := 0; i < numField; i++ {
+		// mx json toDBName(fieldName)
+		var (
+			dbFieldName string
+			f           = ms.rt.Field(i)
+			sn          = f.Name
+			tagMx       = f.Tag.Get("mx")
+		)
+		if tagMx != "" {
+			if tagMx == "-" {
+				continue
+			} else {
+				dbFieldName = tagMx
+			}
+		} else {
+			tagJSON := f.Tag.Get("json")
+			if tagJSON != "" {
+				if strings.Contains(tagJSON, ",") {
+					dbFieldName = strings.Split(tagJSON, ",")[0]
+				} else {
+					dbFieldName = tagJSON
+				}
+			} else {
+				dbFieldName = toDBName(sn)
+			}
+		}
+
+		if f.Anonymous {
+			embedV := ms.rv.FieldByName(sn)
+			setStruct(embedV, embedV.Type(), cols, data)
+		} else {
+			if dataIdx, ok := cols[dbFieldName]; ok {
+				// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
+				setReflectValue(ms.rv.FieldByName(sn), data[dataIdx])
+			} else {
+				// reflect.Type.Type 是名字 例如 main.Weapon
+				// reflect.Value.Kind() 是类型
+				// nss: not set struct/slice
+				// fmt.Println("NOT SET:", sn, f.Type, ms.rv.Kind() == reflect.Struct, dbFieldName)
+				unsetValue := ms.rv.FieldByName(sn)
+				if t.haveTablename(dbFieldName) {
+					subTable := t.Table(dbFieldName)
+					key := ""
+					guessKey1 := t.tableName + "_id"
+					guessKey2 := t.tableName + "id"
+					if subTable.HaveColumn(guessKey1) {
+						key = guessKey1
+					} else if subTable.HaveColumn(guessKey2) {
+						key = guessKey2
+					}
+					if key != "" {
+						switch unsetValue.Kind() {
+						case reflect.Struct:
+							if err := t.Table(dbFieldName).Where(key+" = ?", Int(data[cols["id"]])).Limit(1).ToStruct(unsetValue.Addr().Interface()); err != nil {
+								return err
+							}
+						case reflect.Slice:
+							if err := t.Table(dbFieldName).Where(key+" = ?", Int(data[cols["id"]])).ToStruct(unsetValue.Addr().Interface()); err != nil {
+								return err
+							}
+						}
+					}
+				}
+
+			}
+		}
+	}
+	if af, ok := ms.v.(AfterFinder); ok {
+		af.AfterFind()
+	}
+	return nil
 }
