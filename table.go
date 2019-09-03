@@ -66,6 +66,39 @@ func (t *Table) IDRow(id interface{}) RowMap {
 /*
 	map[string]interface{} 增删改查
 */
+type SaveResp struct {
+	ID int
+}
+
+func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
+	rsp = &SaveResp{}
+	v := reflect.ValueOf(obj)
+	if v.Kind() != reflect.Ptr {
+		return rsp, ErrMustBeAddr
+	}
+	if err := callFunc(v, BeforeCreate); err != nil {
+		return rsp, err
+	}
+	m := structToMap(v, t)
+	for k, v := range m {
+		if k == "id" && v == "" {
+			delete(m, "id")
+		}
+		if t.Columns[k].DataType == "datetime" && v == "" {
+			delete(m, k)
+		}
+	}
+	id, err := t.Create(m)
+
+	rID := v.Elem().FieldByName("ID")
+	if rID.IsValid() {
+		rID.SetInt(int64(id))
+	}
+
+	callFunc(v, AfterCreate)
+	rsp.ID = id
+	return rsp, nil
+}
 
 // Create 创建
 // check 如果有，则会判断表里面以这几个字段为唯一的话，数据库是否存在此条数据，如果有就不插入了。
