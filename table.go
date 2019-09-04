@@ -155,6 +155,11 @@ func (t *Table) Creates(ms []map[string]interface{}) (int, error) {
 	return int(rows), err
 }
 
+// DeleteID Delete(map[string]interface{}{"id": id})
+func (t *Table) DeleteID(id interface{}) (int, error) {
+	return t.Delete(map[string]interface{}{"id": id})
+}
+
 // Delete 删除
 func (t *Table) Delete(m map[string]interface{}) (int, error) {
 	if len(m) == 0 {
