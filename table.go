@@ -67,7 +67,8 @@ func (t *Table) IDRow(id interface{}) RowMap {
 	map[string]interface{} 增删改查
 */
 type SaveResp struct {
-	ID int
+	ID         int
+	RowsAffect int
 }
 
 func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
@@ -76,27 +77,65 @@ func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
 	if v.Kind() != reflect.Ptr {
 		return rsp, ErrMustBeAddr
 	}
-	if err := callFunc(v, BeforeCreate); err != nil {
-		return rsp, err
-	}
-	m := structToMap(v, t)
-	for k, v := range m {
-		if k == "id" && v == "" {
-			delete(m, "id")
+	switch v.Elem().Kind() {
+	case reflect.Struct:
+		isCreate := false
+		rID := v.Elem().FieldByName("ID")
+		if rID.IsValid() {
+			if Int(rID.Interface()) == 0 {
+				isCreate = true
+			}
 		}
-		if t.Columns[k].DataType == "datetime" && v == "" {
-			delete(m, k)
+		if isCreate {
+			if err := callFunc(v, BeforeCreate); err != nil {
+				return rsp, err
+			}
+			m := structToMap(v, t)
+			for k, v := range m {
+				if k == "id" && v == "" {
+					delete(m, "id")
+				}
+				if t.Columns[k].DataType == "datetime" && v == "" {
+					delete(m, k)
+				}
+			}
+			id, err := t.Create(m)
+			if err != nil {
+				return rsp, err
+			}
+			if rID.IsValid() {
+				setReflectValue(rID, stringByte(strconv.Itoa(id)))
+			}
+			callFunc(v, AfterCreate)
+			rsp.ID = id
+		} else {
+			if err := callFunc(v, BeforeUpdate); err != nil {
+				return rsp, err
+			}
+			m := structToMap(v, t)
+			ra, err := t.Update(m)
+			if err != nil {
+				return rsp, err
+			}
+			rsp.RowsAffect = ra
+			if err := callFunc(v, AfterUpdate); err != nil {
+				return rsp, err
+			}
+		}
+	case reflect.Slice:
+		if v.Elem().Len() == 0 {
+			return rsp, nil
+		}
+		ve := v.Elem()
+		sLen := ve.Len()
+		for i := 0; i < sLen; i++ {
+			_, err := t.Save(ve.Index(i).Addr().Interface())
+			if err != nil {
+				return rsp, err
+			}
 		}
 	}
-	id, err := t.Create(m)
 
-	rID := v.Elem().FieldByName("ID")
-	if rID.IsValid() {
-		rID.SetInt(int64(id))
-	}
-
-	callFunc(v, AfterCreate)
-	rsp.ID = id
 	return rsp, nil
 }
 

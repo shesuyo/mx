@@ -374,15 +374,11 @@ func String(v interface{}) string {
 // Int 将传入的值转换成int
 func Int(v interface{}) int {
 	var i int
+
 	switch v := v.(type) {
 	case string:
 		i, _ = strconv.Atoi(v)
 	// 一个case多个值，就无法确认是什么类型了，就成了interface{}，所以要分开写。
-	case int64:
-		i = int(v)
-	// 不实现除了uint64之后的无符号
-	case uint64:
-		i = int(v)
 	case int:
 		i = v
 	case int8:
@@ -390,6 +386,18 @@ func Int(v interface{}) int {
 	case int16:
 		i = int(v)
 	case int32:
+		i = int(v)
+	case int64:
+		i = int(v)
+	case uint:
+		i = int(v)
+	case uint8:
+		i = int(v)
+	case uint16:
+		i = int(v)
+	case uint32:
+		i = int(v)
+	case uint64:
 		i = int(v)
 	case []byte:
 		if len(v) == 0 {
