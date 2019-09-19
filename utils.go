@@ -139,8 +139,19 @@ func ksvs(m map[string]interface{}, keyTail ...string) ([]string, []interface{})
 		kt = keyTail[0]
 	}
 	for k, v := range m {
-		ks = append(ks, " `"+k+"`"+kt)
-		vs = append(vs, v)
+		if expr, ok := v.(Expr); ok {
+			state := expr.State
+			switch expr.spec {
+			case ExprAdd:
+				state = k + " + ? "
+			}
+			ks = append(ks, fmt.Sprintf("`%s` = %s", k, state))
+			vs = append(vs, expr.Args...)
+		} else {
+			ks = append(ks, " `"+k+"`"+kt)
+			vs = append(vs, v)
+		}
+
 	}
 	return ks, vs
 }

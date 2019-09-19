@@ -216,15 +216,10 @@ func (t *Table) Delete(m map[string]interface{}) (int, error) {
 // Update 更新
 // 如果map里面有id的话会自动删除id，然后使用id来作为更新的条件。
 func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
-	// 因为会删除id，所以使用的时候要copy一个map
-	// m := copyMap(mo)
 	id := m["id"]
 	if len(keys) == 0 {
 		keys = append(keys, "id")
 	}
-	// if t.tableColumns[t.tableName].HaveColumn(UpdatedAt) {
-	// 	m[UpdatedAt] = time.Now().Format(TimeFormat)
-	// }
 	keysValue := []interface{}{}
 	whereks := []string{}
 	for _, key := range keys {
@@ -236,7 +231,7 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 		delete(m, key)
 		whereks = append(whereks, "`"+key+"` = ? ")
 	}
-	//因为在更新的时候最好不要更新ID，而有时候又会将ID传入进来，所以id每次都会被删除，如果要更新id的话使用Exec()
+	// 因为在更新的时候最好不要更新id，而有时候又会将id传入进来，所以id每次都会被删除，如果要更新id的话使用Exec(),但强烈不推荐修改id！
 	delete(m, "id")
 	ks, vs := ksvs(m, " = ? ")
 	for _, val := range keysValue {

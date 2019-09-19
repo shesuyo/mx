@@ -179,7 +179,12 @@ func (db *DataBase) log(args ...interface{}) {
 
 func getFullSQL(sql string, args ...interface{}) string {
 	for _, arg := range args {
-		sql = strings.Replace(sql, "?", fmt.Sprintf("'%v'", arg), 1)
+		switch arg.(type) {
+		case int, int64, int32, int16, int8, uint64, uint32, uint16, uint8:
+			sql = strings.Replace(sql, "?", fmt.Sprintf("%v", arg), 1)
+		default:
+			sql = strings.Replace(sql, "?", fmt.Sprintf("'%v'", arg), 1)
+		}
 	}
 	return sql
 }

@@ -31,6 +31,31 @@ type WhereCon struct {
 	Args  []interface{}
 }
 
+type exprSpec uint8
+
+const (
+	ExprNormal exprSpec = iota
+	ExprAdd
+)
+
+// Expr 表达式
+type Expr struct {
+	State string
+	Args  []interface{}
+	spec  exprSpec
+}
+
+var (
+	ExprIncr = Expr{Args: []interface{}{1}, spec: ExprAdd} // field + ? , 1
+)
+
+func NewExpr(state string, args ...interface{}) Expr {
+	return Expr{
+		State: state,
+		Args:  args,
+	}
+}
+
 // Search 搜索结构体
 type Search struct {
 	table *Table
