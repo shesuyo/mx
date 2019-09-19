@@ -108,6 +108,14 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 			}
 			args = nargs
 		}
+		ins, ok := args[0].([]interface{})
+		if ok {
+			nargs := make([]interface{}, len(ins))
+			for idx, val := range ints {
+				nargs[idx] = val
+			}
+			args = nargs
+		}
 	}
 	s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("%s IN (%s)", field, placeholder(len(args))), Args: args})
 	return s
