@@ -815,6 +815,16 @@ func (rm *RowsMap) SortInt(field string, isDesc bool) *RowsMap {
 	})
 }
 
+// SortFloat sort by int field
+func (rm *RowsMap) SortFloat(field string, isDesc bool) *RowsMap {
+	return rm.SortFunc(func(rm RowsMap, i, j int) bool {
+		if isDesc {
+			return rm[i].Float64(field) > rm[j].Float64(field)
+		}
+		return rm[i].Float64(field) < rm[j].Float64(field)
+	})
+}
+
 // SortFunc sort by func
 func (rm *RowsMap) SortFunc(f func(RowsMap, int, int) bool) *RowsMap {
 	rms := RowsMapSort{rm: rm, f: f}
