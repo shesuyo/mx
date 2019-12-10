@@ -1,10 +1,65 @@
 package mx
 
 import (
+	"database/sql"
 	"reflect"
 	"strconv"
 	"testing"
 )
+
+type User struct {
+	DefaultTime
+	ID       uint32 `json:"id"`
+	Name     string `json:"name"`
+	Age      int    `json:"age"`
+	UID      int    `json:"uid"`
+	Bag      Bag    `json:"bag"`
+	IgnoreMe int    `mx:"-" json:"ignore_me"`
+	// Weapon   Weapon `json:"weapon"`
+	// Gem      []Gem  `json:"gem"`
+}
+
+type Weapon struct {
+	ID     int    `json:"id"`
+	UserID int    `json:"user_id"`
+	Name   string `json:"name"`
+	Lv     string `json:"lv"`
+	DefaultTime
+}
+
+type Gem struct {
+	ID      int       `json:"id"`
+	UserID  int       `json:"user_id"`
+	Name    string    `json:"name"`
+	Lv      string    `json:"lv"`
+	History []History `json:"history"`
+	DefaultTime
+}
+type History struct {
+	ID     int    `json:"id"`
+	Remark string `json:"remark"`
+}
+
+func (g *Gem) AfterFind() error {
+	// fmt.Println("gem after find")
+	return nil
+}
+
+func (u *User) AfterFind() error {
+	// u.UID++
+	// fmt.Println("u.UID++")
+	return nil
+}
+
+type DefaultTime struct {
+	Ctime string `json:"ctime"`
+	Utime string `json:"utime"`
+}
+
+type Bag struct {
+	Sn   string `json:"sn"`
+	Name string `json:"name"`
+}
 
 func Test_periodParse(t *testing.T) {
 	type args struct {
@@ -27,8 +82,10 @@ func Test_periodParse(t *testing.T) {
 		{"", args{"1997-1-1", ""}, "", "", true},
 		{"", args{"1997-1-11", ""}, "", "", true},
 		{"1997@", args{"1997", ""}, "1997-01-01 00:00:00", "1998-01-01 00:00:00", false},
+		{"1997@", args{"1997", "1997"}, "1997-01-01 00:00:00", "1998-01-01 00:00:00", false},
 		{"1997@", args{"1997", "1998"}, "1997-01-01 00:00:00", "1999-01-01 00:00:00", false},
 		{"1997@", args{"1997-01", ""}, "1997-01-01 00:00:00", "1997-02-01 00:00:00", false},
+		{"1997@", args{"1997-01", "1997-01"}, "1997-01-01 00:00:00", "1997-02-01 00:00:00", false},
 		{"1997@", args{"1997-01", "1997-02"}, "1997-01-01 00:00:00", "1997-03-01 00:00:00", false},
 		{"1997@", args{"1997-01-01", ""}, "1997-01-01 00:00:00", "1997-01-02 00:00:00", false},
 		{"1997@", args{"1997-01-01", "1997-01-02"}, "1997-01-01 00:00:00", "1997-01-03 00:00:00", false},
@@ -65,13 +122,6 @@ func Test_periodParse(t *testing.T) {
 // PASS
 // ok      github.com/shesuyo/mx   3.951s
 
-type User struct {
-	ID int
-}
-
-func (u *User) AfterFind() error {
-	return nil
-}
 func BenchmarkReflectFunc(b *testing.B) {
 	u := reflect.ValueOf(&User{})
 	b.ResetTimer()
@@ -160,5 +210,51 @@ func BenchmarkSliceGet19(b *testing.B) {
 				break
 			}
 		}
+	}
+}
+
+var db, _ = NewDataBase("root:WOaini123@tcp(localhost:3306)/demo?charset=utf8mb4")
+var UserTable = db.Table("user")
+
+func BenchmarkClone(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = UserTable.Clone()
+	}
+}
+
+func TestQuery(t *testing.T) {
+	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
+	for sr.rows.Next() {
+		vals := make([]*sql.RawBytes, 7)
+		for i := 0; i < 7; i++ {
+			vals[i] = &sql.RawBytes{}
+		}
+		t.Log(sr.Scan(&vals))
+		t.Log(vals)
+	}
+	t.Fail()
+}
+
+// 1s 1_000ms 1_000_000us 1_000_000_000ns
+
+// BenchmarkQuery-16    	   10000	    109262 ns/op	    1624 B/op	      41 allocs/op
+func BenchmarkQuery(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
+		for sr.rows.Next() {
+			vals := make([]*sql.RawBytes, 7)
+			for i := 0; i < 7; i++ {
+				vals[i] = &sql.RawBytes{}
+			}
+			sr.Scan(&vals)
+		}
+	}
+}
+
+// BenchmarkReflectAStruct-16    	    3122	    383770 ns/op	   15140 B/op	     389 allocs/op 加载一个结构体和一个slice
+// BenchmarkReflectAStruct-16    	    9615	    117831 ns/op	    3676 B/op	      98 allocs/op
+func BenchmarkReflectAStruct(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = UserTable.Where("id = ?", 2).ToStruct(&User{})
 	}
 }

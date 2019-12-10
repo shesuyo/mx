@@ -3,6 +3,7 @@ package mx
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -301,10 +302,11 @@ func (rm RowsMap) Sum(field string) int {
 	return sum
 }
 
+// 8.7 * 100.0 = 869.9999999999999
 func (rm RowsMap) SumFloat(field string, multiple int) int {
 	sum := 0
 	for _, v := range rm {
-		sum += int(v.Float64(field) * float64(multiple))
+		sum += int(math.Round(v.Float64(field) * float64(multiple)))
 	}
 	return sum
 }
