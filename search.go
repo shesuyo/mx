@@ -117,30 +117,29 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 		return s
 	}
 	if len(args) == 1 {
-		ints, ok := args[0].([]int)
-		if ok {
+		if ints, ok := args[0].([]int); ok {
 			nargs := make([]interface{}, len(ints))
 			for idx, val := range ints {
 				nargs[idx] = val
 			}
 			args = nargs
-		}
-		strs, ok := args[0].([]string)
-		if ok {
+		} else if strs, ok := args[0].([]string); ok {
 			nargs := make([]interface{}, len(strs))
 			for idx, val := range ints {
 				nargs[idx] = val
 			}
 			args = nargs
-		}
-		ins, ok := args[0].([]interface{})
-		if ok {
+		} else if ins, ok := args[0].([]interface{}); ok {
 			nargs := make([]interface{}, len(ins))
 			for idx, val := range ints {
 				nargs[idx] = val
 			}
 			args = nargs
 		}
+	}
+	// 解析之后还可能为0
+	if len(args) == 0 {
+		return s
 	}
 	s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("%s IN (%s)", field, placeholder(len(args))), Args: args})
 	return s
