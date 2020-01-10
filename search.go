@@ -125,13 +125,13 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 			args = nargs
 		} else if strs, ok := args[0].([]string); ok {
 			nargs := make([]interface{}, len(strs))
-			for idx, val := range ints {
+			for idx, val := range strs {
 				nargs[idx] = val
 			}
 			args = nargs
 		} else if ins, ok := args[0].([]interface{}); ok {
 			nargs := make([]interface{}, len(ins))
-			for idx, val := range ints {
+			for idx, val := range ins {
 				nargs[idx] = val
 			}
 			args = nargs
