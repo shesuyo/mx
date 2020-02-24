@@ -238,7 +238,7 @@ func (s *Search) Parse() (string, []interface{}) {
 		offset       string
 	)
 	if s.table.tableColumns[s.tableName].HaveColumn(IsDeleted) {
-		s.Where("is_deleted = ?", 0)
+		s.Where(s.table.Name()+".is_deleted = ?", 0)
 	}
 	s.query = ""
 	s.args = []interface{}{}
