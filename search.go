@@ -392,7 +392,7 @@ func (s *Search) warpFieldSingel(field string) (warpStr string, tablename string
 
 // RowMap RowMap
 func (s *Search) RowMap() RowMap {
-	nb := (*s).Clone().Limit(1)
+	nb := (*s).Clone()
 	query, args := nb.Parse()
 	return s.table.Query(query, args...).RowMap()
 }
