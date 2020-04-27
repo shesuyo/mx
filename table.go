@@ -351,8 +351,9 @@ func (t *Table) WhereStartEndDay(field, startDay, endDay string) *Table {
 	if startDay != "" && endDay == "" {
 		endDay = startDay
 	}
-	// return t.Clone().Search.Where("DATE_FORMAT("+field+",'%Y-%m-%d') >= ? AND DATE_FORMAT("+field+",'%Y-%m-%d') <= ?", startDay, endDay).table
-	return t.Clone().Search.Where("DATE_FORMAT("+field+",'%Y-%m-%d') >= ? AND DATE_FORMAT("+field+",'%Y-%m-%d') <= ?", startDay, endDay).table
+	startDay += " 00:00:00"
+	endDay += " 23:59:59"
+	return t.Clone().Search.Where(fmt.Sprintf("%s >= ? AND %s <= ?", field, field), startDay, endDay).table
 }
 
 // WhereStartEndMonth DATE_FORMAT(field, '%Y-%m') >= startMonth AND DATE_FORMAT(field, '%Y-%m') <= endMonth
