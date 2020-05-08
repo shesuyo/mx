@@ -538,6 +538,35 @@ type RowsWrap struct {
 // RowsWraps []RowsWrap
 type RowsWraps []RowsWrap
 
+type RowsWrapsSortFunc func(rm *RowsWraps, i, j int) bool
+
+// RowsWrapsSort sort for RowsWraps
+type RowsWrapsSort struct {
+	rm *RowsWraps
+	f  RowsWrapsSortFunc
+}
+
+// Len len
+func (rs RowsWrapsSort) Len() int {
+	return len(*(rs.rm))
+}
+
+// Swap swap
+func (rs RowsWrapsSort) Swap(i, j int) {
+	(*(rs.rm))[i], (*(rs.rm))[j] = (*(rs.rm))[j], (*(rs.rm))[i]
+}
+
+// Less Less
+func (rs RowsWrapsSort) Less(i, j int) bool {
+	return rs.f(rs.rm, i, j)
+}
+
+// Sort Sort
+func (rw *RowsWraps) Sort(f RowsWrapsSortFunc) {
+	rf := RowsWrapsSort{rm: rw, f: f}
+	sort.Sort(rf)
+}
+
 // HaveKey return weather have this key
 func (rw RowsWraps) HaveKey(key string) bool {
 	for _, v := range rw {
