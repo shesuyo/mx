@@ -545,40 +545,6 @@ func (t *Table) FullMember(members []map[string]string, group string, groupValue
 	return err
 }
 
-// func (t *Table) ToStruct(v interface{}) error {
-// 	s := t.Search.Clone()
-// 	query, args := s.Parse()
-// 	cols, data := t.Query(query, args...).TripleByte()
-// 	rvp := reflect.ValueOf(v)
-// 	rv := reflect.Indirect(rvp)
-// 	if !rv.CanAddr() {
-// 		return errors.New("Value Can't addr.")
-// 	}
-// 	rt := rv.Type()
-// 	switch rt.Kind() {
-// 	case reflect.Struct:
-// 		if len(data) > 0 {
-// 			nss, err := setStruct(rv, rt, cols, data[0])
-// 			if err != nil {
-// 				return err
-// 			}
-// 			for _, sn := range nss {
-// 				tableName := toDBName(sn)
-// 				if t.haveTablename(tableName) {
-// 					t.Table(tableName)
-// 				}
-// 			}
-// 			if af, ok := v.(AfterFinder); ok {
-// 				return af.AfterFind()
-// 			}
-// 		}
-// 	case reflect.Slice:
-// 	default:
-// 		return errors.New("Unsupport Type " + rt.Kind().String())
-// 	}
-// 	return nil
-// }
-
 func setStruct(v reflect.Value, t reflect.Type, cols map[string]int, data [][]byte) (err error) {
 	for i := 0; i < t.NumField(); i++ {
 		// mx json toDBName(fieldName)

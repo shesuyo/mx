@@ -235,6 +235,15 @@ func (rm RowMap) NotFound() bool {
 	return false
 }
 
+// Copy return a Copy RowMap
+func (rm RowMap) Copy() RowMap {
+	r := make(RowMap, len(rm))
+	for k, v := range rm {
+		r[k] = v
+	}
+	return r
+}
+
 // Int return int field
 func (rm RowMap) Int(field string, def ...int) int {
 	val, ok := rm[field]
@@ -302,13 +311,19 @@ func (rm RowsMap) Sum(field string) int {
 	return sum
 }
 
-// 8.7 * 100.0 = 869.9999999999999
+// SumFloat SumFloat
+// 8.7 * 100.0 = 869.9999999999999 -> Round
 func (rm RowsMap) SumFloat(field string, multiple int) int {
 	sum := 0
 	for _, v := range rm {
 		sum += int(math.Round(v.Float64(field) * float64(multiple)))
 	}
 	return sum
+}
+
+// SumFloatString SumFloatString
+func (rm RowsMap) SumFloatString(field string) string {
+	return String(float64(rm.SumFloat(field, 100)) / 100.0)
 }
 
 // SumByFieldEq SumByFieldEq
@@ -354,6 +369,16 @@ func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
 	ss := make(map[string]string, 0)
 	for _, r := range rm {
 		ss[r[key]] = r[val]
+	}
+	return ss
+}
+
+// MapIndexKVSum 按照key，val 转换成 map[string]string 值为叠加
+func (rm RowsMap) MapIndexKVSum(key, val string) map[string]string {
+	ss := make(map[string]string, 0)
+	idx := rm.MapIndexs(key)
+	for k, rs := range idx {
+		ss[k] = rs.SumFloatString(val)
 	}
 	return ss
 }
@@ -527,6 +552,20 @@ func (rm RowsMap) GroupByField(field string) []RowsMapGroup {
 		rmg = append(rmg, tmp)
 	}
 	return rmg
+}
+
+// GroupBySQL group like sql
+func (rm RowsMap) GroupBySQL(field string, sumFields ...string) RowsMap {
+	keyMaps := rm.MapIndexs(field)
+	group := make(RowsMap, 0, len(keyMaps))
+	for _, rm := range keyMaps {
+		r := rm.First().Copy()
+		for _, field := range sumFields {
+			r[field] = rm.SumFloatString(field)
+		}
+		group = append(group, r)
+	}
+	return group
 }
 
 // RowsWrap WarpByField
@@ -803,6 +842,13 @@ func (rm RowsMap) Unique(field string) RowsMap {
 		}
 	}
 	return urm
+}
+
+// CoverFieldByField CoverFieldByField
+func (rm RowsMap) CoverFieldByField(fa, fb string) {
+	for _, r := range rm {
+		r[fa] = r[fb]
+	}
 }
 
 // RowsMapSort struct for sort.Sort
