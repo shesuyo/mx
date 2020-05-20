@@ -321,6 +321,15 @@ func (rm RowsMap) SumFloat(field string, multiple int) int {
 	return sum
 }
 
+// SumFloat64 SumFloat64
+func (rm RowsMap) SumFloat64(field string, multiple int) float64 {
+	sum := 0
+	for _, v := range rm {
+		sum += int(math.Round(v.Float64(field) * float64(multiple)))
+	}
+	return float64(sum) / float64(multiple)
+}
+
 // SumFloatString SumFloatString
 func (rm RowsMap) SumFloatString(field string) string {
 	return String(float64(rm.SumFloat(field, 100)) / 100.0)
