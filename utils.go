@@ -447,18 +447,21 @@ func callFunc(v reflect.Value, name string) error {
 }
 
 // Time
+// [st,et]
 // st et 开始 结束时刻
 // sday eday 开始日期 结束日期
 // stime etime 每天的这个时刻
 type Time struct {
-	St    string `json:"st"`
-	Et    string `json:"et"`
-	Day   string `json:"day"`
-	Sday  string `json:"sday"`
-	Eday  string `json:"eday"`
-	Stime string `json:"stime"`
-	Etime string `json:"etime"`
-	Month string `json:"month"`
+	St     string `json:"st"`
+	Et     string `json:"et"`
+	Day    string `json:"day"`
+	Sday   string `json:"sday"`
+	Eday   string `json:"eday"`
+	Stime  string `json:"stime"`
+	Etime  string `json:"etime"`
+	Month  string `json:"month"`
+	Smonth string `json:"smonth"`
+	Emonth string `json:"emonth"`
 }
 
 func (t *Time) Parse() {
@@ -486,6 +489,15 @@ func (t *Time) Parse() {
 			t.St = month.Format(timeFormat)
 			t.Et = month.AddDate(0, 1, 0).Add(-1 * time.Second).Format(timeFormat)
 		}
+	}
+	if t.Smonth != "" {
+		if t.Emonth == "" {
+			t.Emonth = t.Smonth
+		}
+		smonth, _ := time.Parse("2006-01", t.Smonth)
+		emonth, _ := time.Parse("2006-01", t.Emonth)
+		t.St = smonth.Format(timeFormat)
+		t.Et = emonth.AddDate(0, 1, 0).Add(-1 * time.Second).Format(timeFormat)
 	}
 }
 
