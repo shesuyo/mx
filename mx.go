@@ -561,6 +561,9 @@ func (db *DataBase) FindAll(v interface{}, args ...interface{}) error {
 func (db *DataBase) setStructField(rv reflect.Value) {
 	for i := 0; i < rv.NumField(); i++ {
 		field := rv.Field(i)
+		if rv.Type().Field(i).Tag.Get("mx") == "-" {
+			continue
+		}
 		switch field.Kind() {
 		case reflect.Struct:
 			con, ok := db.connection(ToDBName(rv.Field(i).Type().Name()), rv)
