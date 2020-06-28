@@ -79,11 +79,12 @@ func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
 	}
 	switch v.Elem().Kind() {
 	case reflect.Struct:
-		isCreate := false
+		// 没有id一定是创建，有id且不会0才是更新。
+		isCreate := true
 		rID := v.Elem().FieldByName("ID")
 		if rID.IsValid() {
-			if Int(rID.Interface()) == 0 {
-				isCreate = true
+			if Int(rID.Interface()) != 0 {
+				isCreate = false
 			}
 		}
 		if isCreate {
