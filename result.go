@@ -2,6 +2,7 @@ package mx
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -635,7 +636,11 @@ func (rw *RowsWraps) Set(key string, val RowMap) {
 			}
 		}
 	} else {
-		(*rw) = append((*rw), RowsWrap{Key: key, Val: []RowMap{val}})
+		if val == nil {
+			(*rw) = append((*rw), RowsWrap{Key: key, Val: make(RowsMap, 0, 1)})
+		} else {
+			(*rw) = append((*rw), RowsWrap{Key: key, Val: []RowMap{val}})
+		}
 	}
 }
 
@@ -1026,6 +1031,27 @@ func (r *SQLRows) RowsMap() RowsMap {
 		rs = append(rs, rowMap)
 	}
 	return rs
+}
+
+func (r *SQLRows) ToStruct(v interface{}) error {
+	cols, data := r.TripleByte()
+	ms, err := NewModelStruct(v)
+	if err != nil {
+		return err
+	}
+	switch ms.rt.Kind() {
+	case reflect.Struct:
+		if len(data) > 0 {
+			setStruct(ms.rv, ms.rt, cols, data[0])
+		}
+	case reflect.Slice:
+		if len(data) > 0 {
+			setSlice(ms.rv, ms.rt, cols, data)
+		}
+	default:
+		return errors.New("Unsupport Type " + ms.rt.Kind().String())
+	}
+	return nil
 }
 
 // RowMap RowMap

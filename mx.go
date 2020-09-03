@@ -57,6 +57,22 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		conf = DefaultConfig
 	}
 
+	if strings.HasPrefix(dataSourceName, "postgres://") {
+		db, err := sql.Open("postgres", dataSourceName)
+		if err != nil {
+			return nil, err
+		}
+		db.SetMaxIdleConns(conf.MaxIdleConns)
+		db.SetMaxOpenConns(conf.MaxOpenConns)
+		mx := &DataBase{
+			debug:          false,
+			tableColumns:   make(map[string]Columns),
+			dataSourceName: dataSourceName,
+			db:             db,
+			mm:             new(sync.Mutex),
+		}
+		return mx, nil
+	}
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		return nil, err
@@ -92,7 +108,6 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		}
 		mx.tableColumns[tableName] = cm
 	}
-
 	return mx, nil
 }
 
