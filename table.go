@@ -592,6 +592,58 @@ func setStruct(v reflect.Value, t reflect.Type, cols map[string]int, data [][]by
 	return
 }
 
+func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]byte) (err error) {
+	t = v.Type().Elem()
+	for k := 0; k < len(data); k++ {
+		rnp := reflect.New(t)
+		rn := rnp.Elem()
+		for i := 0; i < t.NumField(); i++ {
+			// mx json toDBName(fieldName)
+			var (
+				dbFieldName string
+				f           = t.Field(i)
+				sn          = f.Name
+				tagMx       = f.Tag.Get("mx")
+			)
+			if tagMx != "" {
+				if tagMx == "-" {
+					continue
+				} else {
+					dbFieldName = tagMx
+				}
+			}
+			if f.Anonymous {
+				embedV := rn.FieldByName(sn)
+				setStruct(embedV, embedV.Type(), cols, data[k])
+			} else {
+				if dbFieldName == "" {
+					tagJSON := f.Tag.Get("json")
+					if tagJSON != "" {
+						if strings.Contains(tagJSON, ",") {
+							dbFieldName = strings.Split(tagJSON, ",")[0]
+						} else {
+							dbFieldName = tagJSON
+						}
+					} else {
+						dbFieldName = toDBName(sn)
+					}
+				}
+				if dataIdx, ok := cols[dbFieldName]; ok {
+					// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
+					setReflectValue(rn.FieldByName(sn), data[k][dataIdx])
+				} else {
+					// reflect.Type.Type 是名字 例如 main.Weapon
+					// reflect.Value.Kind() 是类型
+					// nss: not set struct/slice
+					// fmt.Println("NOT SET:", sn, f.Type, v.Kind() == reflect.Struct, dbFieldName)
+				}
+			}
+		}
+		v.Set(reflect.Append(v, rn))
+	}
+	return
+}
+
 func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte) (err error) {
 	rt := ms.rv.Type().Elem()
 	numField := rt.NumField()
