@@ -754,7 +754,6 @@ func NewModelStruct(v interface{}) (*ModelStruct, error) {
 		v: v,
 	}
 	ms.rvp = reflect.ValueOf(v)
-	// fmt.Println(ms.rvp.Kind(), ms.rvp.CanAddr(), ms.rvp.Elem().CanAddr())
 	if ms.rvp.Kind() != reflect.Ptr {
 		return nil, errors.New("Value Can't Addr.")
 	}

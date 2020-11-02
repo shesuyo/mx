@@ -2,6 +2,7 @@ package mx
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -948,6 +949,35 @@ func (rm RowMapInterface) Int(field string) int {
 	str = fmt.Sprintf("%v", rm[field])
 	i, _ := strconv.Atoi(str)
 	return i
+}
+
+// Ints get []int field from RowMapInterface
+func (rm RowMapInterface) Ints(field string) []int {
+	s := []int{}
+	json.Unmarshal(rm.Bytes(field), &s)
+	return s
+}
+
+// Strings get []string field from RowMapInterface
+func (rm RowMapInterface) Strings(field string) []string {
+	s := []string{}
+	json.Unmarshal(rm.Bytes(field), &s)
+	return s
+}
+
+// Interfaces get []interface{} field from RowMapInterface
+func (rm RowMapInterface) Interfaces(field string) []interface{} {
+	s := []interface{}{}
+	json.Unmarshal(rm.Bytes(field), &s)
+	return s
+}
+
+// Parse parse field to val
+func (rm RowMapInterface) Parse(field string, val interface{}) interface{} {
+	if err := json.Unmarshal(rm.Bytes(field), val); err != nil {
+		return nil
+	}
+	return reflect.ValueOf(val).Elem().Interface()
 }
 
 // RowMap convert RowMapInterface to RowMap
