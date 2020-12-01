@@ -117,25 +117,7 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 		return s
 	}
 	if len(args) == 1 {
-		if ints, ok := args[0].([]int); ok {
-			nargs := make([]interface{}, len(ints))
-			for idx, val := range ints {
-				nargs[idx] = val
-			}
-			args = nargs
-		} else if strs, ok := args[0].([]string); ok {
-			nargs := make([]interface{}, len(strs))
-			for idx, val := range strs {
-				nargs[idx] = val
-			}
-			args = nargs
-		} else if ins, ok := args[0].([]interface{}); ok {
-			nargs := make([]interface{}, len(ins))
-			for idx, val := range ins {
-				nargs[idx] = val
-			}
-			args = nargs
-		}
+		args = expandSlice(args[0])
 	}
 	// 解析之后还可能为0
 	if len(args) == 0 {
@@ -147,7 +129,12 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 
 // NotIn not in 语法
 func (s *Search) NotIn(field string, args ...interface{}) *Search {
-	//not in没有参数的话SQL就会报错
+	if len(args) == 0 {
+		return s
+	}
+	if len(args) == 1 {
+		args = expandSlice(args[0])
+	}
 	if len(args) == 0 {
 		return s
 	}
@@ -428,10 +415,10 @@ func (s *Search) Explain(debug bool) Explain {
 // }
 
 // SQLRows SQLRows
-func (s *Search) SQLRows() *SQLRows {
-	query, args := s.Parse()
-	return s.table.Query(query, args...)
-}
+// func (s *Search) SQLRows() *SQLRows {
+// 	query, args := s.Parse()
+// 	return s.table.Query(query, args...)
+// }
 
 // RowsMap RowsMap
 func (s *Search) RowsMap() RowsMap {

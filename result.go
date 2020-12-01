@@ -183,7 +183,7 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 // 	return sb.Bytes(), nil
 // }
 
-// Bool return singel bool
+// Bool return single bool
 func (rm RowMap) Bool(field ...string) bool {
 	if rm.NotFound() {
 		return false

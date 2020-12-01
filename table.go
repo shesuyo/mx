@@ -467,7 +467,11 @@ func (t *Table) Offset(n interface{}) *Table {
 
 // Page page => limit & offset
 func (t *Table) Page(limit, page int) *Table {
-	return t.Clone().Search.Limit(limit).Offset((page - 1) * limit).table
+	offset := (page - 1) * limit
+	if offset < 0 {
+		offset = 0
+	}
+	return t.Clone().Search.Limit(limit).Offset(offset).table
 }
 
 // Fields fields

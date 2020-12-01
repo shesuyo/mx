@@ -518,3 +518,28 @@ func setReflectValue(v reflect.Value, bs []byte) {
 		}
 	}
 }
+
+func expandSlice(arg interface{}) []interface{} {
+	args := make([]interface{}, 0)
+	if ints, ok := arg.([]int); ok {
+		args = make([]interface{}, len(ints))
+		for idx, val := range ints {
+			args[idx] = val
+		}
+	} else if strs, ok := arg.([]string); ok {
+		args = make([]interface{}, len(strs))
+		for idx, val := range strs {
+			args[idx] = val
+		}
+	} else if ins, ok := arg.([]interface{}); ok {
+		args = make([]interface{}, len(ins))
+		for idx, val := range ins {
+			args[idx] = val
+		}
+	} else if arg == nil {
+
+	} else {
+		args = append(args, arg)
+	}
+	return args
+}

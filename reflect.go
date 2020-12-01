@@ -33,90 +33,90 @@ type AfterFinder interface {
 }
 
 // Model 需要有一个将反射封装起来
-type Model struct {
-	fields []Field
-}
+// type Model struct {
+// 	fields []Field
+// }
 
 // NewModel *Model
-func NewModel(v interface{}) *Model {
-	val := reflect.ValueOf(v)
-	t := reflect.Indirect(val)
-	fs := []Field{}
-	for i := 0; i < t.NumField(); i++ {
-		reflectField := t.Type().Field(i) //reflect.Type Field
-		f := Field{
-			name:       reflectField.Name,
-			dbName:     ToDBName(reflectField.Name),
-			value:      t.Field(i).Interface(),
-			isBlank:    isBlank(t.Field(i)),
-			iscRequire: reflectField.Tag.Get("c") == "require",
-			isrRequire: reflectField.Tag.Get("r") == "require",
-			isuRequire: reflectField.Tag.Get("u") == "require",
-			isdRequire: reflectField.Tag.Get("d") == "require",
-			isIgnore:   reflectField.Tag.Get("crud") == "ignore",
-		}
-		fs = append(fs, f)
-	}
-	return &Model{fields: fs}
-}
+// func NewModel(v interface{}) *Model {
+// 	val := reflect.ValueOf(v)
+// 	t := reflect.Indirect(val)
+// 	fs := []Field{}
+// 	for i := 0; i < t.NumField(); i++ {
+// 		reflectField := t.Type().Field(i) //reflect.Type Field
+// 		f := Field{
+// 			name:       reflectField.Name,
+// 			dbName:     ToDBName(reflectField.Name),
+// 			value:      t.Field(i).Interface(),
+// 			isBlank:    isBlank(t.Field(i)),
+// 			iscRequire: reflectField.Tag.Get("c") == "require",
+// 			isrRequire: reflectField.Tag.Get("r") == "require",
+// 			isuRequire: reflectField.Tag.Get("u") == "require",
+// 			isdRequire: reflectField.Tag.Get("d") == "require",
+// 			isIgnore:   reflectField.Tag.Get("crud") == "ignore",
+// 		}
+// 		fs = append(fs, f)
+// 	}
+// 	return &Model{fields: fs}
+// }
 
 // Fields 返回所有的字段
-func (m *Model) Fields() []Field {
-	return m.fields
-}
+// func (m *Model) Fields() []Field {
+// 	return m.fields
+// }
 
 // Field 表中的字段
-type Field struct {
-	name       string
-	dbName     string
-	value      interface{}
-	isBlank    bool
-	iscRequire bool
-	isrRequire bool
-	isuRequire bool
-	isdRequire bool
-	isIgnore   bool
-}
+// type Field struct {
+// 	name       string
+// 	dbName     string
+// 	value      interface{}
+// 	isBlank    bool
+// 	iscRequire bool
+// 	isrRequire bool
+// 	isuRequire bool
+// 	isdRequire bool
+// 	isIgnore   bool
+// }
 
 // Name 对应的结构体字段名
-func (f *Field) Name() string {
-	return f.name
-}
+// func (f *Field) Name() string {
+// 	return f.name
+// }
 
 // DBName 结构体字段名对应的数据库名
-func (f *Field) DBName() string {
-	return f.dbName
-}
+// func (f *Field) DBName() string {
+// 	return f.dbName
+// }
 
 // Value 值
-func (f *Field) Value() interface{} {
-	return f.value
-}
+// func (f *Field) Value() interface{} {
+// 	return f.value
+// }
 
 // IsBlank 是否为空
-func (f *Field) IsBlank() bool {
-	return f.isBlank
-}
+// func (f *Field) IsBlank() bool {
+// 	return f.isBlank
+// }
 
 // IsRequire 是否必须
-func (f *Field) IsRequire(method string) bool {
-	switch method {
-	case C:
-		return f.iscRequire
-	case R:
-		return f.isrRequire
-	case U:
-		return f.isuRequire
-	case D:
-		return f.isdRequire
-	}
-	return false
-}
+// func (f *Field) IsRequire(method string) bool {
+// 	switch method {
+// 	case C:
+// 		return f.iscRequire
+// 	case R:
+// 		return f.isrRequire
+// 	case U:
+// 		return f.isuRequire
+// 	case D:
+// 		return f.isdRequire
+// 	}
+// 	return false
+// }
 
 // IsIgnore 是否忽略此字段
-func (f *Field) IsIgnore() bool {
-	return f.isIgnore
-}
+// func (f *Field) IsIgnore() bool {
+// 	return f.isIgnore
+// }
 
 // 获取结构体对应的数据库名
 // func getStructDBName(db *DataBase, v reflect.Value) string {
