@@ -513,6 +513,12 @@ func setReflectValue(v reflect.Value, bs []byte) {
 			v.SetUint(uint64(Int(bs)))
 		case reflect.Struct, reflect.Slice:
 			json.Unmarshal(bs, v.Addr().Interface())
+		case reflect.Float64:
+			f, _ := strconv.ParseFloat(String(bs), 64)
+			v.SetFloat(f)
+		case reflect.Float32:
+			f, _ := strconv.ParseFloat(String(bs), 32)
+			v.SetFloat(f)
 		default:
 			v.Set(reflect.ValueOf(String(bs)))
 		}
