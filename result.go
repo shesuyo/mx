@@ -998,6 +998,46 @@ func (rs RowsMapInterface) Pluck(field string) []interface{} {
 	return out
 }
 
+// Sort sort RowsMapInterface
+func (rs RowsMapInterface) Sort(field string, isDesc ...bool) {
+	if len(rs) == 0 {
+		return
+	}
+	kind := reflect.String
+	switch rs[0][field].(type) {
+	case int:
+		kind = reflect.Int
+	}
+	sort.Sort(rowsMapInterfaceSort{
+		rs:    rs,
+		field: field,
+		desc:  len(isDesc) > 0 && isDesc[0],
+		kind:  kind,
+	})
+}
+
+type rowsMapInterfaceSort struct {
+	rs    RowsMapInterface
+	field string
+	desc  bool
+	kind  reflect.Kind
+}
+
+func (p rowsMapInterfaceSort) Len() int { return len(p.rs) }
+func (p rowsMapInterfaceSort) Less(i, j int) bool {
+	var less bool
+	if p.kind == reflect.Int {
+		less = p.rs[i].Int(p.field) < p.rs[j].Int(p.field)
+	} else if p.kind == reflect.String {
+		less = p.rs[i].String(p.field) < p.rs[j].String(p.field)
+	}
+	if p.desc {
+		less = !less
+	}
+	return less
+}
+func (p rowsMapInterfaceSort) Swap(i, j int) { p.rs[i], p.rs[j] = p.rs[j], p.rs[i] }
+
 // ToStruct to struct
 // func (r *SQLRows) ToStruct(v interface{}) error {
 // 	rvp := reflect.ValueOf(v)
