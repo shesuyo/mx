@@ -15,6 +15,7 @@ type Table struct {
 	*Search
 	tableName string
 	Columns   Columns
+	indexs    map[string]Indexs
 }
 
 // Name 返回名称
@@ -48,6 +49,69 @@ func (t *Table) SetAutoIncrement(id int) error {
 func (t *Table) MaxID() int {
 	return t.Query("SELECT IFNULL(MAX(id), 0) as id FROM `" + t.tableName + "`").Int()
 
+}
+
+type Index struct {
+	Table        string
+	NonUnique    int
+	KeyName      string
+	SeqInIndex   int
+	ColumnName   string
+	Collation    string
+	Cardinality  int
+	Subpart      string // int default null
+	Packed       string
+	Null         string
+	IndexType    string
+	Comment      string
+	IndexComment string
+	Visible      string
+	Expression   string
+}
+type Indexs []Index
+
+func (idxs Indexs) IsUnique() bool {
+	for _, idx := range idxs {
+		return idx.NonUnique == 0
+	}
+	return false
+}
+
+func (t *Table) Indexs() map[string]Indexs {
+	if t.indexs != nil {
+		return t.indexs
+	}
+	indexs := make(map[string]Indexs, 0)
+	ms := t.Query("SHOW INDEX FROM " + t.tableName).RowsMap().MapIndexs("Key_name")
+	for name, rs := range ms {
+		rs.SortInt("Seq_in_index", false)
+		is := make([]Index, 0)
+		for _, r := range rs {
+			if r["Non_unique"] == "" {
+				fmt.Println("Non_unique缺失")
+			}
+			is = append(is, Index{
+				Table:        r["table"],
+				NonUnique:    r.Int("Non_unique"),
+				KeyName:      r["Key_name"],
+				SeqInIndex:   r.Int("Seq_in_index"),
+				ColumnName:   r["Column_name"],
+				Collation:    r["Collation"],
+				Cardinality:  r.Int("Cardinality"),
+				Subpart:      r["Sub_part"],
+				Packed:       r["Packed"],
+				Null:         r["Null"],
+				IndexType:    r["Index_type"],
+				Comment:      r["Comment"],
+				IndexComment: r["Index_comment"],
+				Visible:      r["Visible"],
+				Expression:   r["Expression"],
+			})
+		}
+		indexs[name] = is
+	}
+	t.indexs = indexs
+	return indexs
 }
 
 // IDIn 查找多个ID对应的列
