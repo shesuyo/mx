@@ -276,6 +276,13 @@ func (rm RowMap) Int32(field string, def ...int32) int32 {
 	return 0
 }
 
+// Strings return []string field
+func (rm RowMap) Strings(field string) []string {
+	s := make([]string, 0)
+	json.Unmarshal([]byte(rm[field]), &s)
+	return s
+}
+
 // Float64 return float64
 func (rm RowMap) Float64(field string, def ...float64) float64 {
 	val, ok := rm[field]
