@@ -386,6 +386,9 @@ func (t *Table) WhereNotEmpty(query, arg string) *Table {
 // WhereTime where time
 func (t *Table) WhereTime(field string, tm Time) *Table {
 	tm.Parse()
+	if tm.St == "" && tm.Et == "" {
+		return t
+	}
 	nt := t.Clone().Search.Where(fmt.Sprintf("%s >= ? AND %s <= ?", field, field), tm.St, tm.Et).table
 	if tm.Stime != "" {
 		nt = nt.WhereStartEndTime(field, tm.Stime, tm.Etime)
