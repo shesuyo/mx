@@ -729,12 +729,8 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte)
 				sn          = f.Name
 				tagMx       = f.Tag.Get("mx")
 			)
-			if tagMx != "" {
-				if tagMx == "-" {
-					continue
-				} else {
-					dbFieldName = tagMx
-				}
+			if tagMx != "" && tagMx != "-" {
+				dbFieldName = tagMx
 			}
 			if f.Anonymous {
 				embedV := rn.FieldByName(sn)
@@ -846,12 +842,8 @@ func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte) e
 			sn          = f.Name
 			tagMx       = f.Tag.Get("mx")
 		)
-		if tagMx != "" {
-			if tagMx == "-" {
-				continue
-			} else {
-				dbFieldName = tagMx
-			}
+		if tagMx != "" && tagMx != "-" {
+			dbFieldName = tagMx
 		} else {
 			tagJSON := f.Tag.Get("json")
 			if tagJSON != "" {
