@@ -82,7 +82,7 @@ func (t *Table) Indexs() map[string]Indexs {
 		return t.indexs
 	}
 	indexs := make(map[string]Indexs, 0)
-	ms := t.Query("SHOW INDEX FROM " + t.tableName).RowsMap().MapIndexs("Key_name")
+	ms := t.Query(fmt.Sprintf("SHOW INDEX FROM `%s`", t.tableName)).RowsMap().MapIndexs("Key_name")
 	for name, rs := range ms {
 		rs.SortInt("Seq_in_index", false)
 		is := make([]Index, 0)
