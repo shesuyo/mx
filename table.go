@@ -506,6 +506,11 @@ func (t *Table) In(field string, args ...interface{}) *Table {
 	return t.Clone().Search.In(field, args...).table
 }
 
+// MustIn 强制搜索结果一定要包含args里面的数据，如果为空则返回空数据。
+func (t *Table) MustIn(field string, args ...interface{}) *Table {
+	return t.Clone().Search.In(field, args...).table
+}
+
 // NotIn not in
 func (t *Table) NotIn(field string, args ...interface{}) *Table {
 	return t.Clone().Search.NotIn(field, args...).table

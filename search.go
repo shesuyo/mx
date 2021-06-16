@@ -127,6 +127,25 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 	return s
 }
 
+// MustIn in语法
+func (s *Search) MustIn(field string, args ...interface{}) *Search {
+	// 强制 in nothing 就查 tableName.id<0
+	if len(args) == 0 {
+		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
+		return s
+	}
+	if len(args) == 1 {
+		args = expandSlice(args[0])
+	}
+	// 解析之后还可能为0
+	if len(args) == 0 {
+		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
+		return s
+	}
+	s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("%s IN (%s)", field, placeholder(len(args))), Args: args})
+	return s
+}
+
 // NotIn not in 语法
 func (s *Search) NotIn(field string, args ...interface{}) *Search {
 	if len(args) == 0 {
