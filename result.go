@@ -298,6 +298,11 @@ func (rm RowMap) Float64(field string, def ...float64) float64 {
 	return 0
 }
 
+// Unmarshal json unmarshal
+func (r RowMap) Unmarshal(field string, v interface{}) error {
+	return json.Unmarshal([]byte(r[field]), v)
+}
+
 // Copy 复制一份
 func (rm RowsMap) Copy() RowsMap {
 	nrm := make(RowsMap, len(rm))
