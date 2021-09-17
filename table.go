@@ -303,7 +303,7 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 		vs = append(vs, val)
 	}
 	m["id"] = id
-	af, err := t.Exec(
+	ra, err := t.Exec(
 		fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1",
 			t.tableName,
 			strings.Join(ks, ","),
@@ -315,7 +315,7 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 		// 可能是语法，也可能是执行错误。
 		return 0, ErrExec
 	}
-	return int(af), err
+	return int(ra), err
 }
 
 // CreateOrUpdate 创建或者更新

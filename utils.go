@@ -143,7 +143,7 @@ func ksvs(m map[string]interface{}, keyTail ...string) ([]string, []interface{})
 			state := expr.State
 			switch expr.spec {
 			case ExprAdd:
-				state = k + " + ? "
+				state = fmt.Sprintf("`%s` + ? ", k)
 			}
 			ks = append(ks, fmt.Sprintf("`%s` = %s", k, state))
 			vs = append(vs, expr.Args...)
