@@ -49,6 +49,10 @@ var (
 	ExprIncr = Expr{Args: []interface{}{1}, spec: ExprAdd} // field + ? , 1
 )
 
+func ExprIncrNum(num int) Expr {
+	return Expr{Args: []interface{}{num}, spec: ExprAdd}
+}
+
 func NewExpr(state string, args ...interface{}) Expr {
 	return Expr{
 		State: state,
@@ -463,6 +467,7 @@ func (s *Search) DoubleSlice() (map[string]int, [][]string) {
 	return s.table.Query(query, args...).DoubleSlice()
 }
 
+// Int return single int value in query
 // Int 如果指定字段，则返回指定字段的int值，否则返回第一个字段作为int值返回。
 func (s *Search) Int(args ...string) int {
 	row := s.RowMap()
@@ -478,7 +483,7 @@ func (s *Search) Int(args ...string) int {
 	return 0
 }
 
-// String like int
+// String return single string value in query
 func (s *Search) String(args ...string) string {
 	row := s.RowMap()
 	if len(args) == 0 {
@@ -489,6 +494,22 @@ func (s *Search) String(args ...string) string {
 		return row[args[0]]
 	}
 	return ""
+}
+
+// Float return single float value in query
+func (s *Search) Float(args ...string) float64 {
+	row := s.RowMap()
+	val := "0"
+	if len(args) == 0 {
+		for _, v := range row {
+			val = v
+			break
+		}
+	} else {
+		val = row[args[0]]
+	}
+	f, _ := strconv.ParseFloat(val, 64)
+	return f
 }
 
 // Bool Bool
