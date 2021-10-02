@@ -126,13 +126,16 @@ func TestRowMapInterface_Interfaces(t *testing.T) {
 		want []interface{}
 	}{
 		// TODO: Add test cases.
-		{"", RowMapInterface{"field": `[1,2,3]`}, args{field: "field"}, makeinteface(4, 1, 2, 3)},
+		{"", RowMapInterface{"field": `[1,2,3]`}, args{field: "field"}, makeinteface(4, 1.0, 2.0, 3.0)},
 		{"", RowMapInterface{"field": `["1","2","3"]`}, args{field: "field"}, []interface{}{"1", "2", "3"}},
-		{"", RowMapInterface{"field": `[1,"2",3]`}, args{field: "field"}, makeinteface(4, 1, "2", 3)},
+		{"", RowMapInterface{"field": `[1,"2",3]`}, args{field: "field"}, makeinteface(4, 1.0, "2", 3.0)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.rm.Interfaces(tt.args.field); !reflect.DeepEqual(got, tt.want) {
+				for idx := range got {
+					t.Error(reflect.TypeOf(got[idx]), reflect.TypeOf(tt.want[idx]))
+				}
 				t.Errorf("RowMapInterface.Interfaces() = %v, want %v", got, tt.want)
 				t.Error(len(got), cap(got), len(tt.want), cap(tt.want))
 			}
