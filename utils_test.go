@@ -9,15 +9,15 @@ import (
 )
 
 type User struct {
-	DefaultTime
-	ID       uint32 `json:"id"`
-	Name     string `json:"name"`
-	Age      int    `json:"age"`
-	UID      int    `json:"uid"`
-	Bag      Bag    `json:"bag"`
-	IgnoreMe int    `mx:"-" json:"ignore_me"`
-	Weapon   Weapon `json:"weapon"`
-	Gem      []Gem  `json:"gem"`
+	DefaultTime    `json:"default_time"`
+	ID             uint32 `json:"id"`
+	Name           string `json:"name"`
+	Age            int    `json:"age"`
+	UID            int    `json:"uid"`
+	IgnoreMe       int    `mx:"-" json:"ignore_me"`
+	AfterFindCount int    `mx:"-" json:"after_find_count"`
+	Weapon         Weapon `json:"weapon"`
+	Gem            []Gem  `json:"gem"`
 }
 
 type Weapon struct {
@@ -29,11 +29,12 @@ type Weapon struct {
 }
 
 type Gem struct {
-	ID      int       `json:"id"`
-	UserID  int       `json:"user_id"`
-	Name    string    `json:"name"`
-	Lv      string    `json:"lv"`
-	History []History `json:"history"`
+	ID             int       `json:"id"`
+	UserID         int       `json:"user_id"`
+	Name           string    `json:"name"`
+	Lv             string    `json:"lv"`
+	AfterFindCount int       `mx:"-" json:"after_find_count"`
+	History        []History `json:"history"`
 	DefaultTime
 }
 type History struct {
@@ -42,24 +43,18 @@ type History struct {
 }
 
 func (g *Gem) AfterFind() error {
-	// fmt.Println("gem after find")
+	g.AfterFindCount++
 	return nil
 }
 
 func (u *User) AfterFind() error {
-	// u.UID++
-	// fmt.Println("u.UID++")
+	u.AfterFindCount++
 	return nil
 }
 
 type DefaultTime struct {
 	Ctime string `json:"ctime"`
 	Utime string `json:"utime"`
-}
-
-type Bag struct {
-	Sn   string `json:"sn"`
-	Name string `json:"name"`
 }
 
 func Test_periodParse(t *testing.T) {
@@ -252,11 +247,11 @@ func BenchmarkQuery(b *testing.B) {
 }
 
 func TestTableToStruct(t *testing.T) {
-	UserTable.Debug(true)
 	u := User{}
 	UserTable.Where("id = ?", 2).ToStruct(&u)
-	t.Fatal(JSONStringify(u))
-	UserTable.Debug(false)
+	if u.AfterFindCount != 1 {
+		t.Fatal("AfterFind Err")
+	}
 }
 
 // BenchmarkReflectAStruct-16    	    3122	    383770 ns/op	   15140 B/op	     389 allocs/op 加载一个结构体和一个slice
