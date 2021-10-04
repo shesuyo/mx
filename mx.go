@@ -177,19 +177,15 @@ func (db *DataBase) Debug(isDebug bool) *DataBase {
 // Log 打印日志
 func (db *DataBase) Log(args ...interface{}) {
 	if db.debug {
-		db.log(args...)
+		mxlog(args...)
 	}
 }
 
 // LogSQL 会将sql语句中的?替换成相应的参数，让DEBUG的时候可以直接复制SQL语句去使用。
 func (db *DataBase) LogSQL(sql string, args ...interface{}) {
 	if db.debug {
-		db.log(getFullSQL(sql, args...))
+		mxlog(getFullSQL(sql, args...))
 	}
-}
-
-func (db *DataBase) log(args ...interface{}) {
-	log.Println(args...)
 }
 
 func getFullSQL(sql string, args ...interface{}) string {

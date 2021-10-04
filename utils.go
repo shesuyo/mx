@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -548,4 +549,8 @@ func expandSlice(arg interface{}) []interface{} {
 		args = append(args, arg)
 	}
 	return args
+}
+
+func mxlog(args ...interface{}) {
+	log.Println(args...)
 }

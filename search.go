@@ -79,6 +79,7 @@ type Search struct {
 	query string
 	args  []interface{}
 	raw   bool
+	debug bool
 }
 
 // Clone 克隆一个当前结构体
