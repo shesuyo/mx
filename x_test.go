@@ -3,7 +3,6 @@ package mx
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -41,7 +40,7 @@ func TestQuery2(t *testing.T) {
 		}
 		for _, ct := range cts {
 			length, _ := ct.Length()
-			fmt.Println(ct.Name(), ct.DatabaseTypeName(), ct.ScanType().Name(), length)
+			t.Log(ct.Name(), ct.DatabaseTypeName(), ct.ScanType().Name(), length)
 		}
 		vals := make([]*sql.RawBytes, 7)
 		for i := 0; i < len(cols); i++ {
@@ -58,11 +57,6 @@ func TestQuery2(t *testing.T) {
 // IN 使用的时候有两种情况
 // 第一种 IN长度为0的时候应该查询所有数据
 // 第二种 IN长度为0的时候应该查询不到数据
-
-func TestQQQ(t *testing.T) {
-	// t.Log(NewModel(User{}))
-	t.Log(NewModelStruct(&User{}))
-}
 
 // Deprecated: 弃用此方法
 
@@ -91,7 +85,7 @@ type User struct {
 	IgnoreMe       int    `mx:"-" json:"ignore_me"`
 	AfterFindCount int    `mx:"-" json:"after_find_count"`
 	Weapon         Weapon `json:"weapon"`
-	Gem            []Gem  `json:"gem"`
+	Gems           []Gem  `json:"gem"`
 }
 
 type Weapon struct {
@@ -313,4 +307,16 @@ func JSONStringify(v interface{}) string {
 		return ""
 	}
 	return string(bs)
+}
+
+func TestToStructSliceNested(t *testing.T) {
+	us := []User{}
+	// UserTable.DataBase.debug = true
+	UserTable.Where("id IN(1,2)").ToStruct(&us)
+	t.Log(len(us))
+
+	for _, u := range us {
+		t.Log(u.ID, u.Name, u.Weapon.Name)
+		t.Log(len(u.Gems))
+	}
 }

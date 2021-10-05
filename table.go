@@ -922,7 +922,7 @@ func (t *Table) DebugSwitch(isDebug bool) *Table {
 }
 
 func (t *Table) Query(sql string, args ...interface{}) *SQLRows {
-	if t.Search.debug {
+	if t.Search.debug || t.DataBase.debug {
 		mxlog(getFullSQL(sql, args...))
 	}
 	rows, err := t.DB().Query(sql, args...)
@@ -934,7 +934,7 @@ func (t *Table) Query(sql string, args ...interface{}) *SQLRows {
 }
 
 func (t *Table) Exec(sql string, args ...interface{}) *SQLResult {
-	if t.Search.debug {
+	if t.Search.debug || t.DataBase.debug {
 		mxlog(getFullSQL(sql, args...))
 	}
 	ret, err := t.DB().Exec(sql, args...)

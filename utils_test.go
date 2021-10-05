@@ -602,21 +602,3 @@ func Test_expandSlice(t *testing.T) {
 		})
 	}
 }
-
-func Test_mxlog(t *testing.T) {
-	type args struct {
-		args []interface{}
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-
-		{"", args{[]interface{}{1, 2, 3}}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mxlog(tt.args.args...)
-		})
-	}
-}
