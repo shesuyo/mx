@@ -1,60 +1,379 @@
 package mx
 
 import (
-	"database/sql"
-	"encoding/json"
 	"reflect"
-	"strconv"
 	"testing"
+	"time"
 )
 
-type User struct {
-	DefaultTime    `json:"default_time"`
-	ID             uint32 `json:"id"`
-	Name           string `json:"name"`
-	Age            int    `json:"age"`
-	UID            int    `json:"uid"`
-	IgnoreMe       int    `mx:"-" json:"ignore_me"`
-	AfterFindCount int    `mx:"-" json:"after_find_count"`
-	Weapon         Weapon `json:"weapon"`
-	Gem            []Gem  `json:"gem"`
+func TestSafeMapStringString_Get(t *testing.T) {
+	type args struct {
+		key string
+	}
+	tests := []struct {
+		name  string
+		safe  *SafeMapStringString
+		args  args
+		want  string
+		want1 bool
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := tt.safe.Get(tt.args.key)
+			if got != tt.want {
+				t.Errorf("SafeMapStringString.Get() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("SafeMapStringString.Get() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
 }
 
-type Weapon struct {
-	ID     int    `json:"id"`
-	UserID int    `json:"user_id"`
-	Name   string `json:"name"`
-	Lv     string `json:"lv"`
-	DefaultTime
+func TestSafeMapStringString_Set(t *testing.T) {
+	type args struct {
+		key string
+		val string
+	}
+	tests := []struct {
+		name string
+		safe *SafeMapStringString
+		args args
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.safe.Set(tt.args.key, tt.args.val)
+		})
+	}
 }
 
-type Gem struct {
-	ID             int       `json:"id"`
-	UserID         int       `json:"user_id"`
-	Name           string    `json:"name"`
-	Lv             string    `json:"lv"`
-	AfterFindCount int       `mx:"-" json:"after_find_count"`
-	History        []History `json:"history"`
-	DefaultTime
-}
-type History struct {
-	ID     int    `json:"id"`
-	Remark string `json:"remark"`
-}
-
-func (g *Gem) AfterFind() error {
-	g.AfterFindCount++
-	return nil
+func TestNewMapStringString(t *testing.T) {
+	tests := []struct {
+		name string
+		want *SafeMapStringString
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewMapStringString(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewMapStringString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
-func (u *User) AfterFind() error {
-	u.AfterFindCount++
-	return nil
+func TestToDBName(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{"UserWeapon"}, "user_weapon"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ToDBName(tt.args.name); got != tt.want {
+				t.Errorf("ToDBName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
-type DefaultTime struct {
-	Ctime string `json:"ctime"`
-	Utime string `json:"utime"`
+func TestToStructName(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{"user_weapon"}, "UserWeapon"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ToStructName(tt.args.name); got != tt.want {
+				t.Errorf("ToStructName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_toStructName(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{"user_weapon"}, "UserWeapon"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toStructName(tt.args.name); got != tt.want {
+				t.Errorf("toStructName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_toDBName(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{"UserWeapon"}, "user_weapon"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toDBName(tt.args.name); got != tt.want {
+				t.Errorf("toDBName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_ksvs(t *testing.T) {
+	type args struct {
+		m       map[string]interface{}
+		keyTail []string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  []string
+		want1 []interface{}
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := ksvs(tt.args.m, tt.args.keyTail...)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ksvs() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ksvs() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func Test_argslice(t *testing.T) {
+	type args struct {
+		l int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := argslice(tt.args.l); got != tt.want {
+				t.Errorf("argslice() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getTags(t *testing.T) {
+	type args struct {
+		v     reflect.Value
+		t     reflect.Type
+		table *Table
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getTags(tt.args.v, tt.args.t, tt.args.table); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getTags() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_structToMap(t *testing.T) {
+	type args struct {
+		v     reflect.Value
+		table *Table
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]interface{}
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := structToMap(tt.args.v, tt.args.table); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("structToMap() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlaceholder(t *testing.T) {
+	type args struct {
+		n int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{1}, "?"},
+		{"", args{3}, "?,?,?"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Placeholder(tt.args.n); got != tt.want {
+				t.Errorf("Placeholder() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_placeholder(t *testing.T) {
+	type args struct {
+		n int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{1}, "?"},
+		{"", args{3}, "?,?,?"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := placeholder(tt.args.n); got != tt.want {
+				t.Errorf("placeholder() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMapsToCRUDRows(t *testing.T) {
+	type args struct {
+		m []map[string]string
+	}
+	tests := []struct {
+		name string
+		args args
+		want RowsMap
+	}{
+
+		{"", args{m: []map[string]string{{"a": "1"}}}, RowsMap{{"a": "1"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MapsToCRUDRows(tt.args.m); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MapsToCRUDRows() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_stringify(t *testing.T) {
+	type args struct {
+		v interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+
+		{"", args{[]string{"1"}}, `["1"]`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stringify(tt.args.v); got != tt.want {
+				t.Errorf("stringify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_copyMap(t *testing.T) {
+	type args struct {
+		m map[string]interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]interface{}
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := copyMap(tt.args.m); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("copyMap() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWhereTimeParse(t *testing.T) {
+	type args struct {
+		field  string
+		ts     string
+		years  int
+		months int
+		days   int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := WhereTimeParse(tt.args.field, tt.args.ts, tt.args.years, tt.args.months, tt.args.days); got != tt.want {
+				t.Errorf("WhereTimeParse() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_timeParse(t *testing.T) {
+	type args struct {
+		ts string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    time.Time
+		wantErr bool
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := timeParse(tt.args.ts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("timeParse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("timeParse() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func Test_periodParse(t *testing.T) {
@@ -69,7 +388,7 @@ func Test_periodParse(t *testing.T) {
 		want1   string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+
 		{"", args{"", ""}, "", "", true},
 		{"", args{"你好吗", ""}, "", "", true},
 		{"", args{"", "1997"}, "", "", true},
@@ -109,156 +428,45 @@ func Test_periodParse(t *testing.T) {
 	}
 }
 
-// go test -benchmem -bench "^(BenchmarkReflectFunc)|(BenchmarkAssertionFunc)$"
-// goos: windows
-// goarch: amd64
-// pkg: github.com/shesuyo/mx
-// Benchmark_ReflectFunc-16         3000000               453 ns/op             208 B/op          7 allocs/op
-// Benchmark_AssertionFunc-16      200000000                6.98 ns/op            0 B/op          0 allocs/op
-// PASS
-// ok      github.com/shesuyo/mx   3.951s
-
-func BenchmarkReflectFunc(b *testing.B) {
-	u := reflect.ValueOf(&User{})
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if af := u.MethodByName(AfterFind); af.IsValid() {
-			af.Call(nil)
-		}
+func Test_byteString(t *testing.T) {
+	type args struct {
+		b []byte
 	}
-}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
 
-func BenchmarkAssertionFunc(b *testing.B) {
-	var u interface{} = &User{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if af, ok := u.(AfterFinder); ok {
-			af.AfterFind()
-		}
+		{"", args{[]byte{'a', 'b'}}, "ab"},
 	}
-}
-
-// go test -benchmem -bench "^(BenchmarkMapGet)|(BenchmarkSliceGet.{1,2})$"
-// goos: windows
-// goarch: amd64
-// pkg: github.com/shesuyo/mx
-// BenchmarkMapGet-16              100000000               11.1 ns/op             0 B/op          0 allocs/op
-// BenchmarkSliceGet0-16           2000000000               0.84 ns/op            0 B/op          0 allocs/op
-// BenchmarkSliceGet10-16          300000000                5.05 ns/op            0 B/op          0 allocs/op
-// BenchmarkSliceGet19-16          100000000               11.8 ns/op             0 B/op          0 allocs/op
-// PASS
-// ok      github.com/shesuyo/mx   6.167s
-
-func BenchmarkMapGet(b *testing.B) {
-	m := make(map[string]Columns)
-	for i := 0; i < 20; i++ {
-		m["field"+strconv.Itoa(i)] = Columns{}
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = m["field19"]
-	}
-}
-
-type KeyWithColumns struct {
-	key  string
-	cols Columns
-}
-
-func BenchmarkSliceGet0(b *testing.B) {
-	m := []KeyWithColumns{}
-	for i := 0; i < 20; i++ {
-		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 20; j++ {
-			if m[j].key == "field0" {
-				break
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := byteString(tt.args.b); got != tt.want {
+				t.Errorf("byteString() = %v, want %v", got, tt.want)
 			}
-		}
+		})
 	}
 }
 
-func BenchmarkSliceGet10(b *testing.B) {
-	m := []KeyWithColumns{}
-	for i := 0; i < 20; i++ {
-		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
+func Test_stringByte(t *testing.T) {
+	type args struct {
+		s string
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 20; j++ {
-			if m[j].key == "field10" {
-				break
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+
+		{"", args{"ab"}, []byte{'a', 'b'}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stringByte(tt.args.s); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("stringByte() = %v, want %v", got, tt.want)
 			}
-		}
-	}
-}
-func BenchmarkSliceGet19(b *testing.B) {
-	m := []KeyWithColumns{}
-	for i := 0; i < 20; i++ {
-		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 20; j++ {
-			if m[j].key == "field19" {
-				break
-			}
-		}
-	}
-}
-
-var db, _ = NewDataBase("root:WOaini123@tcp(localhost:3306)/demo?charset=utf8mb4")
-var UserTable = db.Table("user")
-
-func BenchmarkClone(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = UserTable.Clone()
-	}
-}
-
-func TestQuery(t *testing.T) {
-	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
-	for sr.rows.Next() {
-		vals := make([]*sql.RawBytes, 7)
-		for i := 0; i < 7; i++ {
-			vals[i] = &sql.RawBytes{}
-		}
-		t.Log(sr.Scan(&vals))
-		t.Log(vals)
-	}
-}
-
-// 1s 1_000ms 1_000_000us 1_000_000_000ns
-
-// BenchmarkQuery-16    	   10000	    109262 ns/op	    1624 B/op	      41 allocs/op
-func BenchmarkQuery(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
-		for sr.rows.Next() {
-			vals := make([]*sql.RawBytes, 7)
-			for i := 0; i < 7; i++ {
-				vals[i] = &sql.RawBytes{}
-			}
-			sr.Scan(&vals)
-		}
-	}
-}
-
-func TestTableToStruct(t *testing.T) {
-	u := User{}
-	UserTable.Where("id = ?", 2).ToStruct(&u)
-	if u.AfterFindCount != 1 {
-		t.Fatal("AfterFind Err")
-	}
-}
-
-// BenchmarkReflectAStruct-16    	    3122	    383770 ns/op	   15140 B/op	     389 allocs/op 加载一个结构体和一个slice
-// BenchmarkReflectAStruct-16    	    9615	    117831 ns/op	    3676 B/op	      98 allocs/op
-func BenchmarkReflectAStruct(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = UserTable.Where("id = ?", 2).ToStruct(&User{})
+		})
 	}
 }
 
@@ -283,25 +491,88 @@ func TestString(t *testing.T) {
 	}
 }
 
-// has one
-// has many
-// many to many
+func TestInt(t *testing.T) {
+	type args struct {
+		v interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
 
-func isSlice(args interface{}) bool {
-	return reflect.TypeOf(args).Kind() == reflect.Slice
-}
-
-func TestIsSlice(t *testing.T) {
-	args := []interface{}{}
-	if !isSlice(args) {
-		t.Fatal("fail with is slice")
+		{"", args{"1"}, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Int(tt.args.v); got != tt.want {
+				t.Errorf("Int() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func BenchmarkIsSlice(b *testing.B) {
-	args := []interface{}{}
-	for i := 0; i < b.N; i++ {
-		isSlice(args)
+func Test_callFunc(t *testing.T) {
+	type args struct {
+		v    reflect.Value
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := callFunc(tt.args.v, tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("callFunc() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestTime_Parse(t *testing.T) {
+	tests := []struct {
+		name string
+		t    *Time
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.t.Parse()
+		})
+	}
+}
+
+func Test_setReflectValue(t *testing.T) {
+	type args struct {
+		v  reflect.Value
+		bs []byte
+	}
+	var i int
+	var s string
+	var ui uint
+	var is []int
+	var f64 float64
+	var f32 float32
+	tests := []struct {
+		name string
+		args args
+		want interface{}
+	}{
+		{"", args{reflect.ValueOf(&i).Elem(), []byte("1")}, int(1)},
+		{"", args{reflect.ValueOf(&s).Elem(), []byte("1")}, "1"},
+		{"", args{reflect.ValueOf(&ui).Elem(), []byte("1")}, uint(1)},
+		{"", args{reflect.ValueOf(&is).Elem(), []byte("[1,2]")}, []int{1, 2}},
+		{"", args{reflect.ValueOf(&f64).Elem(), []byte("1")}, float64(1)},
+		{"", args{reflect.ValueOf(&f32).Elem(), []byte("1")}, float32(1)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setReflectValue(tt.args.v, tt.args.bs)
+			if !reflect.DeepEqual(tt.args.v.Interface(), tt.want) {
+				t.Errorf("setReflectValue() = %v, want %v", tt.args.v.Interface(), tt.want)
+			}
+		})
 	}
 }
 
@@ -314,7 +585,6 @@ func Test_expandSlice(t *testing.T) {
 		args args
 		want []interface{}
 	}{
-		// TODO: Add test cases.
 		{"", args{nil}, make([]interface{}, 0)},
 		{"", args{[]int{}}, make([]interface{}, 0)},
 		{"", args{[]int{1, 2, 3}}, []interface{}{1, 2, 3}},
@@ -333,10 +603,20 @@ func Test_expandSlice(t *testing.T) {
 	}
 }
 
-func JSONStringify(v interface{}) string {
-	bs, err := json.Marshal(v)
-	if err != nil {
-		return ""
+func Test_mxlog(t *testing.T) {
+	type args struct {
+		args []interface{}
 	}
-	return string(bs)
+	tests := []struct {
+		name string
+		args args
+	}{
+
+		{"", args{[]interface{}{1, 2, 3}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mxlog(tt.args.args...)
+		})
+	}
 }
