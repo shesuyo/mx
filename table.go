@@ -160,7 +160,7 @@ func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
 				if k == "id" && v == "" {
 					delete(m, "id")
 				}
-				if t.Columns[k].DataType == "datetime" && v == "" {
+				if (t.Columns[k].DataType == "datetime" || t.Columns[k].DataType == "date") && v == "" {
 					delete(m, k)
 				}
 			}

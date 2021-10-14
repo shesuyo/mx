@@ -234,7 +234,7 @@ func (s *Search) Having(query string, args ...interface{}) *Search {
 // LIMIT 1
 // OFFSET 1
 func (s *Search) Parse() (string, []interface{}) {
-	if s.raw == true {
+	if s.raw {
 		return s.query, s.args
 	}
 	var (

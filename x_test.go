@@ -311,12 +311,12 @@ func JSONStringify(v interface{}) string {
 
 func TestToStructSliceNested(t *testing.T) {
 	us := []User{}
-	// UserTable.DataBase.debug = true
+	UserTable.DataBase.debug = true
 	UserTable.Where("id IN(1,2)").ToStruct(&us)
-	t.Log(len(us))
+	t.Log("user len:", len(us))
 
 	for _, u := range us {
 		t.Log(u.ID, u.Name, u.Weapon.Name)
-		t.Log(len(u.Gems))
+		t.Log("gems len:", len(u.Gems))
 	}
 }

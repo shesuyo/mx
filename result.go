@@ -104,7 +104,7 @@ func (r *SQLRows) RowMapInterface() RowMapInterface {
 	if len(rows) >= 1 {
 		return rows[0]
 	}
-	return make(RowMapInterface, 0)
+	return make(RowMapInterface)
 }
 
 // RowsMapInterface 返回[]map[string]interface{}，每个数组对应一列。
@@ -389,7 +389,7 @@ func (rm RowsMap) MapIndex(field string) map[string]RowMap {
 
 // MapIndexKV 按照key，val 转换成 map[string]string
 func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
-	ss := make(map[string]string, 0)
+	ss := make(map[string]string, len(rm))
 	for _, r := range rm {
 		ss[r[key]] = r[val]
 	}
@@ -398,7 +398,7 @@ func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
 
 // MapIndexKVSum 按照key，val 转换成 map[string]string 值为叠加
 func (rm RowsMap) MapIndexKVSum(key, val string) map[string]string {
-	ss := make(map[string]string, 0)
+	ss := make(map[string]string)
 	idx := rm.MapIndexs(key)
 	for k, rs := range idx {
 		ss[k] = rs.SumFloatString(val)
@@ -1147,7 +1147,6 @@ func (r *SQLRows) RowMap() RowMap {
 
 // DoubleSlice 用于追求效率和更低的内存，但是使用比较不方便。
 func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
-	cols := make([]string, 0)
 	datas := make([][]string, 0)
 	if r.err != nil {
 		return map[string]int{}, datas
@@ -1326,38 +1325,6 @@ func (r *SQLRows) Scan(v interface{}) error {
 		return err
 	}
 	return nil
-}
-
-func queryRows(rows *sql.Rows) RowsMap {
-	var result = make([]RowMap, 0)
-	for rows.Next() {
-		result = append(result, scanRows(rows))
-	}
-	return result
-}
-
-func scanRows(rows *sql.Rows) RowMap {
-	var result = make(map[string]string)
-
-	cols, _ := rows.Columns()
-
-	containers := make([]interface{}, 0, len(cols))
-	for i := 0; i < cap(containers); i++ {
-		var v sql.RawBytes
-		containers = append(containers, &v)
-	}
-
-	err := rows.Scan(containers...)
-	if err != nil {
-		return nil
-	}
-
-	for i, v := range containers {
-		value := reflect.Indirect(reflect.ValueOf(v)).Bytes()
-		result[cols[i]] = string(value)
-	}
-
-	return result
 }
 
 // SQLResult 是一个封装了sql.Result 的结构体

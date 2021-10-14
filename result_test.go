@@ -111,9 +111,7 @@ func TestRowMapInterface_Interfaces(t *testing.T) {
 	// 一开始以为数据对不上是因为cap不同， 后来发现cap相同，他们还是不一样。
 	makeinteface := func(cap int, args ...interface{}) []interface{} {
 		s := make([]interface{}, 0, cap)
-		for _, arg := range args {
-			s = append(s, arg)
-		}
+		s = append(s, args...)
 		return s
 	}
 	type args struct {
