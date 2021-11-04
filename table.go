@@ -264,6 +264,21 @@ func (t *Table) DeleteID(id interface{}) (int, error) {
 	return t.Delete(map[string]interface{}{"id": id})
 }
 
+// DeleteIDs delete multi id
+func (t *Table) DeleteIDs(args ...interface{}) (int, error) {
+	if len(args) == 0 {
+		return 0, nil
+	}
+	if len(args) == 1 {
+		args = expandSlice(args[0])
+	}
+	if len(args) == 0 {
+		return 0, nil
+	}
+	af, err := t.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE id IN(%s)", t.tableName, placeholder(len(args))), args...).RowsAffected()
+	return int(af), err
+}
+
 // Delete 删除
 func (t *Table) Delete(m map[string]interface{}) (int, error) {
 	if len(m) == 0 {
