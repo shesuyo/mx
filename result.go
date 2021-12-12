@@ -387,6 +387,15 @@ func (rm RowsMap) MapIndex(field string) map[string]RowMap {
 	return sr
 }
 
+// MapIndexInt 按照指定field划分成map[int]RowMap
+func (rm RowsMap) MapIndexInt(field string) map[int]RowMap {
+	sr := make(map[int]RowMap, len(rm))
+	for _, r := range rm {
+		sr[r.Int(field)] = r
+	}
+	return sr
+}
+
 // MapIndexKV 按照key，val 转换成 map[string]string
 func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
 	ss := make(map[string]string, len(rm))
@@ -411,6 +420,14 @@ func (rm RowsMap) MapIndexs(field string) map[string]RowsMap {
 	sr := make(map[string]RowsMap, len(rm))
 	for _, r := range rm {
 		sr[r[field]] = append(sr[r[field]], r)
+	}
+	return sr
+}
+
+func (rm RowsMap) MapIndexsInt(field string) map[int]RowsMap {
+	sr := make(map[int]RowsMap, len(rm))
+	for _, r := range rm {
+		sr[r.Int(field)] = append(sr[r.Int(field)], r)
 	}
 	return sr
 }
