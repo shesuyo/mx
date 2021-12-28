@@ -277,7 +277,7 @@ func copyMap(m map[string]interface{}) map[string]interface{} {
 	return newm
 }
 
-// WhereTimeParse 将时间段转换成对应SQL
+// WhereTimeParse 将时间段转换成对应SQL [)
 func WhereTimeParse(field, ts string, years, months, days int) string {
 	// (createdtime >= '2018-01-01 00:00:00' AND createdtime < '2018-01-02 00:00:00')
 	var a, b string

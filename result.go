@@ -387,6 +387,15 @@ func (rm RowsMap) MapIndex(field string) map[string]RowMap {
 	return sr
 }
 
+// MapIndexExist 按照指定field划分成map[string]bool
+func (rm RowsMap) MapIndexExist(field string) map[string]bool {
+	sr := make(map[string]bool, len(rm))
+	for _, r := range rm {
+		sr[r[field]] = true
+	}
+	return sr
+}
+
 // MapIndexInt 按照指定field划分成map[int]RowMap
 func (rm RowsMap) MapIndexInt(field string) map[int]RowMap {
 	sr := make(map[int]RowMap, len(rm))
