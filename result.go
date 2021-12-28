@@ -423,6 +423,15 @@ func (rm RowsMap) MapIndexIntKV(key, val string) map[int]string {
 	return ss
 }
 
+// MapIndexIntKVInt 按照key，val 转换成 map[int]int
+func (rm RowsMap) MapIndexIntKVInt(key, val string) map[int]int {
+	ss := make(map[int]int, len(rm))
+	for _, r := range rm {
+		ss[r.Int(key)] = r.Int(val)
+	}
+	return ss
+}
+
 // MapIndexKVSum 按照key，val 转换成 map[string]string 值为叠加
 func (rm RowsMap) MapIndexKVSum(key, val string) map[string]string {
 	ss := make(map[string]string)
