@@ -64,9 +64,11 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		}
 		db.SetMaxIdleConns(conf.MaxIdleConns)
 		db.SetMaxOpenConns(conf.MaxOpenConns)
-		if err := db.Ping(); err != nil {
-			return nil, err
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+  		defer cancel()
+  		if err := db.PingContext(ctx); err != nil {
+   			return nil, err
+  		}
 		mx := &DataBase{
 			debug:          false,
 			tableColumns:   make(map[string]Columns),
@@ -82,9 +84,11 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 	}
 	db.SetMaxIdleConns(conf.MaxIdleConns)
 	db.SetMaxOpenConns(conf.MaxOpenConns)
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+  	defer cancel()
+  	if err := db.PingContext(ctx); err != nil {
+   		return nil, err
+  	}
 	mx := &DataBase{
 		debug:          false,
 		tableColumns:   make(map[string]Columns),
