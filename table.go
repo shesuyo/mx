@@ -3,6 +3,7 @@ package mx
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -519,6 +520,21 @@ func (t *Table) WhereID(id interface{}) *Table {
 // In In(field, a,b,c)
 func (t *Table) In(field string, args ...interface{}) *Table {
 	return t.Clone().Search.In(field, args...).table
+}
+
+// InWhere In(field, 1,2,3) to Where("field >= min AND field <= max")
+func (t *Table) InWhere(field string, args ...int) *Table {
+	min := math.MaxInt
+	max := math.MinInt
+	for _, arg := range args {
+		if arg < min {
+			min = arg
+		}
+		if arg > max {
+			max = arg
+		}
+	}
+	return t.Clone().Search.Where(fmt.Sprintf("%s >=? AND %s <=?", field, field), min, max).table
 }
 
 // MustIn 强制搜索结果一定要包含args里面的数据，如果为空则返回空数据。
