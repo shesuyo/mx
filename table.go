@@ -751,7 +751,7 @@ func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]b
 	return
 }
 
-func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte) (err error) {
+func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte, guess bool) (err error) {
 	rt := ms.rv.Type().Elem()
 	numField := rt.NumField()
 	for j := 0; j < len(datas); j++ {
@@ -786,7 +786,7 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte)
 				}
 				if dataIdx, ok := cols[dbFieldName]; ok {
 					setReflectValue(rn.FieldByName(sn), datas[j][dataIdx])
-				} else {
+				} else if guess {
 					unsetValue := rn.FieldByName(sn)
 					if t.haveTablename(dbFieldName) {
 						subTable := t.Table(dbFieldName)
@@ -822,6 +822,31 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte)
 	return nil
 }
 
+// Struct no auto query
+func (t *Table) Struct(v interface{}) error {
+	s := t.Search.Clone()
+	query, args := s.Parse()
+	cols, data := t.Query(query, args...).TripleByte()
+	ms, err := NewModelStruct(v)
+	if err != nil {
+		return err
+	}
+	switch ms.rt.Kind() {
+	case reflect.Struct:
+		if len(data) > 0 {
+			ms.SetStruct(t, cols, data[0], false)
+		}
+	case reflect.Slice:
+		if len(data) > 0 {
+			ms.setSlice(t, cols, data, false)
+		}
+	default:
+		return errors.New("Unsupport Type " + ms.rt.Kind().String())
+	}
+	return nil
+}
+
+// ToStruct auto query
 func (t *Table) ToStruct(v interface{}) error {
 	s := t.Search.Clone()
 	query, args := s.Parse()
@@ -833,11 +858,11 @@ func (t *Table) ToStruct(v interface{}) error {
 	switch ms.rt.Kind() {
 	case reflect.Struct:
 		if len(data) > 0 {
-			ms.SetStruct(t, cols, data[0])
+			ms.SetStruct(t, cols, data[0], true)
 		}
 	case reflect.Slice:
 		if len(data) > 0 {
-			ms.setSlice(t, cols, data)
+			ms.setSlice(t, cols, data, true)
 		}
 	default:
 		return errors.New("Unsupport Type " + ms.rt.Kind().String())
@@ -868,7 +893,7 @@ func NewModelStruct(v interface{}) (*ModelStruct, error) {
 	return ms, nil
 }
 
-func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte) error {
+func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, guess bool) error {
 	numField := ms.rt.NumField()
 	for i := 0; i < numField; i++ {
 		// mx json toDBName(fieldName)
@@ -900,7 +925,7 @@ func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte) e
 			if dataIdx, ok := cols[dbFieldName]; ok {
 				// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
 				setReflectValue(ms.rv.FieldByName(sn), data[dataIdx])
-			} else {
+			} else if guess {
 				// reflect.Type.Type 是名字 例如 main.Weapon
 				// reflect.Value.Kind() 是类型
 				// nss: not set struct/slice

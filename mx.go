@@ -212,6 +212,10 @@ func getFullSQL(sql string, args ...interface{}) string {
 	return sql
 }
 
+func GetFullSQL(sql string, args ...interface{}) string {
+	return getFullSQL(sql, args...)
+}
+
 // 如果发生了异常就打印调用栈。
 func (db *DataBase) stack(err error, sql string, args ...interface{}) {
 	buf := make([]byte, 1<<10)
