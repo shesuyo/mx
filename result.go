@@ -46,16 +46,16 @@ type (
 	//RowsMapInterface 多行
 	RowsMapInterface []RowMapInterface
 	//RowMapInterface 单行
-	RowMapInterface map[string]interface{}
+	RowMapInterface map[string]any
 )
 
 // Pluck  获取某一列的interface类型
-func (r *SQLRows) Pluck(cn string) []interface{} {
+func (r *SQLRows) Pluck(cn string) []any {
 	if r.err != nil {
-		return []interface{}{}
+		return []any{}
 	}
 	rs := r.RowsMapInterface()
-	out := make([]interface{}, 0, len(rs))
+	out := make([]any, 0, len(rs))
 	for _, v := range rs {
 		out = append(out, v[cn])
 	}
@@ -138,9 +138,9 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 	}
 
 	for r.rows.Next() {
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 
-		containers := make([]interface{}, 0, len(cols))
+		containers := make([]any, 0, len(cols))
 		for i := 0; i < cap(containers); i++ {
 			containers = append(containers, &sql.RawBytes{})
 		}
@@ -299,7 +299,7 @@ func (rm RowMap) Float64(field string, def ...float64) float64 {
 }
 
 // Unmarshal json unmarshal
-func (r RowMap) Unmarshal(field string, v interface{}) error {
+func (r RowMap) Unmarshal(field string, v any) error {
 	return json.Unmarshal([]byte(r[field]), v)
 }
 
@@ -875,8 +875,8 @@ func (rm RowsMap) RowsField(val, field string) RowsMap {
 }
 
 // Pluck 取出中间的一列
-func (rm RowsMap) Pluck(key string) []interface{} {
-	var vs = make([]interface{}, 0)
+func (rm RowsMap) Pluck(key string) []any {
+	var vs = make([]any, 0)
 	for _, v := range rm {
 		vs = append(vs, v[key])
 	}
@@ -1022,14 +1022,14 @@ func (rm RowMapInterface) Strings(field string) []string {
 }
 
 // Interfaces get []interface{} field from RowMapInterface
-func (rm RowMapInterface) Interfaces(field string) []interface{} {
-	s := []interface{}{}
+func (rm RowMapInterface) Interfaces(field string) []any {
+	s := []any{}
 	json.Unmarshal(rm.Bytes(field), &s)
 	return s
 }
 
 // Parse parse field to val
-func (rm RowMapInterface) Parse(field string, val interface{}) interface{} {
+func (rm RowMapInterface) Parse(field string, val any) any {
 	if err := json.Unmarshal(rm.Bytes(field), val); err != nil {
 		return nil
 	}
@@ -1046,8 +1046,8 @@ func (rm RowMapInterface) RowMap() RowMap {
 }
 
 // Pluck pluck from RowsMapInterface
-func (rs RowsMapInterface) Pluck(field string) []interface{} {
-	out := make([]interface{}, 0, len(rs))
+func (rs RowsMapInterface) Pluck(field string) []any {
+	out := make([]any, 0, len(rs))
 	for _, r := range rs {
 		out = append(out, r[field])
 	}
@@ -1145,7 +1145,7 @@ func (r *SQLRows) RowsMap() RowsMap {
 	for r.rows.Next() {
 		//type RawBytes []byte
 		rowMap := make(map[string]string)
-		containers := make([]interface{}, 0, len(cols))
+		containers := make([]any, 0, len(cols))
 		for i := 0; i < cap(containers); i++ {
 			containers = append(containers, &[]byte{})
 		}
@@ -1159,7 +1159,7 @@ func (r *SQLRows) RowsMap() RowsMap {
 	return rs
 }
 
-func (r *SQLRows) ToStruct(v interface{}) error {
+func (r *SQLRows) ToStruct(v any) error {
 	cols, data := r.TripleByte()
 	ms, err := NewModelStruct(v)
 	if err != nil {
@@ -1200,7 +1200,7 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 		return map[string]int{}, datas
 	}
 	rawResult := make([][]byte, len(cols))
-	dest := make([]interface{}, len(cols))
+	dest := make([]any, len(cols))
 	for idx := range rawResult {
 		dest[idx] = &rawResult[idx]
 	}
@@ -1237,7 +1237,7 @@ func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
 		return map[string]int{}, datas
 	}
 	rawResult := make([][]byte, len(cols))
-	dest := make([]interface{}, len(cols))
+	dest := make([]any, len(cols))
 	for idx := range rawResult {
 		dest[idx] = &rawResult[idx]
 	}
@@ -1279,7 +1279,7 @@ func (r *SQLRows) String() string {
 }
 
 // Find 将结果查找后放到结构体中
-func (r *SQLRows) Find(v interface{}) error {
+func (r *SQLRows) Find(v any) error {
 	m := r.RowsMapInterface()
 	rv := reflect.ValueOf(v).Elem()
 	//如果查询是数组的话
@@ -1345,7 +1345,7 @@ func (r *SQLRows) Find(v interface{}) error {
 	return nil
 }
 
-func (r *SQLRows) setValue(v reflect.Value, i interface{}) {
+func (r *SQLRows) setValue(v reflect.Value, i any) {
 	if i != nil && v.Interface() != nil {
 		switch v.Kind() {
 		case reflect.Int:
@@ -1359,7 +1359,7 @@ func (r *SQLRows) setValue(v reflect.Value, i interface{}) {
 }
 
 // Scan 当只需要一列中的一个数据是可以使用Scan,比如 select count(*) from tablename
-func (r *SQLRows) Scan(v interface{}) error {
+func (r *SQLRows) Scan(v any) error {
 	if r.err != nil {
 		return r.err
 	}

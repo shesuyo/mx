@@ -132,10 +132,10 @@ func toDBName(name string) string {
 	return ""
 }
 
-func ksvs(m map[string]interface{}, keyTail ...string) ([]string, []interface{}) {
+func ksvs(m map[string]any, keyTail ...string) ([]string, []any) {
 	kt := ""
 	ks := []string{}
-	vs := []interface{}{}
+	vs := []any{}
 	if len(keyTail) > 0 {
 		kt = keyTail[0]
 	}
@@ -204,11 +204,11 @@ func getTags(v reflect.Value, t reflect.Type, table *Table) []string {
 
 // structToMap 将结构体转换成map[string]interface{}
 // fields 指定只转换的字段，int不受限制
-func structToMap(v reflect.Value, table *Table) map[string]interface{} {
+func structToMap(v reflect.Value, table *Table) map[string]any {
 	v = reflect.Indirect(v)
 	t := v.Type()
 	numField := v.NumField()
-	m := make(map[string]interface{}, numField)
+	m := make(map[string]any, numField)
 	tags := getTags(v, t, table)
 
 	for i := 0; i < numField; i++ {
@@ -264,13 +264,13 @@ func MapsToCRUDRows(m []map[string]string) RowsMap {
 	return rm
 }
 
-func stringify(v interface{}) string {
+func stringify(v any) string {
 	bs, _ := json.Marshal(&v)
 	return string(bs)
 }
 
-func copyMap(m map[string]interface{}) map[string]interface{} {
-	newm := make(map[string]interface{}, len(m))
+func copyMap(m map[string]any) map[string]any {
+	newm := make(map[string]any, len(m))
 	for k, v := range m {
 		newm[k] = v
 	}
@@ -367,7 +367,7 @@ func stringByte(s string) []byte {
 }
 
 // String 将传入的值转换成字符串
-func String(v interface{}) string {
+func String(v any) string {
 	var s string
 	switch v := v.(type) {
 	case int:
@@ -385,7 +385,7 @@ func String(v interface{}) string {
 }
 
 // Int 将传入的值转换成int
-func Int(v interface{}) int {
+func Int(v any) int {
 	var i int
 
 	switch v := v.(type) {
@@ -526,20 +526,20 @@ func setReflectValue(v reflect.Value, bs []byte) {
 	}
 }
 
-func expandSlice(arg interface{}) []interface{} {
-	args := make([]interface{}, 0)
+func expandSlice(arg any) []any {
+	args := make([]any, 0)
 	if ints, ok := arg.([]int); ok {
-		args = make([]interface{}, len(ints))
+		args = make([]any, len(ints))
 		for idx, val := range ints {
 			args[idx] = val
 		}
 	} else if strs, ok := arg.([]string); ok {
-		args = make([]interface{}, len(strs))
+		args = make([]any, len(strs))
 		for idx, val := range strs {
 			args[idx] = val
 		}
-	} else if ins, ok := arg.([]interface{}); ok {
-		args = make([]interface{}, len(ins))
+	} else if ins, ok := arg.([]any); ok {
+		args = make([]any, len(ins))
 		for idx, val := range ins {
 			args[idx] = val
 		}
@@ -551,6 +551,6 @@ func expandSlice(arg interface{}) []interface{} {
 	return args
 }
 
-func mxlog(args ...interface{}) {
+func mxlog(args ...any) {
 	log.Println(args...)
 }

@@ -116,7 +116,7 @@ func (t *Table) Indexs() map[string]Indexs {
 }
 
 // IDIn 查找多个ID对应的列
-func (t *Table) IDIn(ids ...interface{}) *SQLRows {
+func (t *Table) IDIn(ids ...any) *SQLRows {
 	if len(ids) == 0 {
 		return &SQLRows{}
 	}
@@ -124,7 +124,7 @@ func (t *Table) IDIn(ids ...interface{}) *SQLRows {
 }
 
 // IDRow 根据ID返回RowMap
-func (t *Table) IDRow(id interface{}) RowMap {
+func (t *Table) IDRow(id any) RowMap {
 	return t.Query(fmt.Sprintf("SELECT * FROM `%s` WHERE id=?", t.tableName), id).RowMap()
 }
 
@@ -136,7 +136,7 @@ type SaveResp struct {
 	RowsAffect int
 }
 
-func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
+func (t *Table) Save(obj any) (rsp *SaveResp, err error) {
 	rsp = &SaveResp{}
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
@@ -209,11 +209,11 @@ func (t *Table) Save(obj interface{}) (rsp *SaveResp, err error) {
 // check 如果有，则会判断表里面以这几个字段为唯一的话，数据库是否存在此条数据，如果有就不插入了。
 // 所有ORM的底层。FormXXX， (*DataBase)CRUD
 //
-func (t *Table) Create(m map[string]interface{}, checks ...string) (int, error) {
+func (t *Table) Create(m map[string]any, checks ...string) (int, error) {
 	//INSERT INTO `feedback` (`task_id`, `template_question_id`, `question_options_id`, `suggestion`, `member_id`) VALUES ('1', '1', '1', '1', '1')
 	if len(checks) > 0 {
 		names := []string{}
-		values := []interface{}{}
+		values := []any{}
 		for _, check := range checks {
 			names = append(names, "`"+check+"`"+" = ? ")
 			values = append(values, m[check])
@@ -232,13 +232,13 @@ func (t *Table) Create(m map[string]interface{}, checks ...string) (int, error) 
 }
 
 // Creates 创建多条数据
-func (t *Table) Creates(ms []map[string]interface{}) (int, error) {
+func (t *Table) Creates(ms []map[string]any) (int, error) {
 	if len(ms) == 0 {
 		return 0, nil
 	}
 	// INSERT INTO `feedback` (`task_id`, `template_question_id`, `question_options_id`, `suggestion`, `member_id`) VALUES ('1', '1', '1', '1', '1'),('1', '1', '1', '1', '1')
 	fields := []string{}
-	args := []interface{}{}
+	args := []any{}
 	sqlFields := []string{}
 	sqlArgs := []string{}
 	sqlArg := "(" + argslice(len(ms[0])) + ")"
@@ -261,12 +261,12 @@ func (t *Table) Creates(ms []map[string]interface{}) (int, error) {
 }
 
 // DeleteID Delete(map[string]interface{}{"id": id})
-func (t *Table) DeleteID(id interface{}) (int, error) {
-	return t.Delete(map[string]interface{}{"id": id})
+func (t *Table) DeleteID(id any) (int, error) {
+	return t.Delete(map[string]any{"id": id})
 }
 
 // DeleteIDs delete multi id
-func (t *Table) DeleteIDs(args ...interface{}) (int, error) {
+func (t *Table) DeleteIDs(args ...any) (int, error) {
 	if len(args) == 0 {
 		return 0, nil
 	}
@@ -281,7 +281,7 @@ func (t *Table) DeleteIDs(args ...interface{}) (int, error) {
 }
 
 // Delete 删除
-func (t *Table) Delete(m map[string]interface{}) (int, error) {
+func (t *Table) Delete(m map[string]any) (int, error) {
 	if len(m) == 0 {
 		return 0, ErrNoDeleteKey
 	}
@@ -296,12 +296,12 @@ func (t *Table) Delete(m map[string]interface{}) (int, error) {
 
 // Update 更新
 // 如果map里面有id的话会自动删除id，然后使用id来作为更新的条件。
-func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
+func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
 	id := m["id"]
 	if len(keys) == 0 {
 		keys = append(keys, "id")
 	}
-	keysValue := []interface{}{}
+	keysValue := []any{}
 	whereks := []string{}
 	for _, key := range keys {
 		val, ok := m[key]
@@ -335,7 +335,7 @@ func (t *Table) Update(m map[string]interface{}, keys ...string) (int, error) {
 }
 
 // CreateOrUpdate 创建或者更新
-func (t *Table) CreateOrUpdate(m map[string]interface{}, keys ...string) error {
+func (t *Table) CreateOrUpdate(m map[string]any, keys ...string) error {
 	_, err := t.Create(m, keys...)
 	if err != nil {
 		if err == ErrInsertRepeat {
@@ -352,7 +352,7 @@ func (t *Table) CreateOrUpdate(m map[string]interface{}, keys ...string) error {
 }
 
 // Read 查找单条数据
-func (t *Table) Read(m map[string]interface{}) RowMap {
+func (t *Table) Read(m map[string]any) RowMap {
 	rs := t.Reads(m)
 	if len(rs) > 0 {
 		return rs[0]
@@ -361,7 +361,7 @@ func (t *Table) Read(m map[string]interface{}) RowMap {
 }
 
 // Reads 查找多条数据
-func (t *Table) Reads(m map[string]interface{}) RowsMap {
+func (t *Table) Reads(m map[string]any) RowsMap {
 	if t.tableColumns[t.tableName].HaveColumn(IsDeleted) {
 		m[IsDeleted] = 0
 	}
@@ -387,7 +387,7 @@ func (t *Table) Clone() *Table {
 }
 
 // Where field = arg
-func (t *Table) Where(query string, args ...interface{}) *Table {
+func (t *Table) Where(query string, args ...any) *Table {
 	return t.Clone().Search.Where(query, args...).table
 }
 
@@ -513,12 +513,12 @@ func (t *Table) WhereLikeRight(field, like string) *Table {
 }
 
 // WhereID id = ?
-func (t *Table) WhereID(id interface{}) *Table {
+func (t *Table) WhereID(id any) *Table {
 	return t.Clone().Search.WhereID(id).table
 }
 
 // In In(field, a,b,c)
-func (t *Table) In(field string, args ...interface{}) *Table {
+func (t *Table) In(field string, args ...any) *Table {
 	return t.Clone().Search.In(field, args...).table
 }
 
@@ -538,12 +538,12 @@ func (t *Table) InWhere(field string, args ...int) *Table {
 }
 
 // MustIn 强制搜索结果一定要包含args里面的数据，如果为空则返回空数据。
-func (t *Table) MustIn(field string, args ...interface{}) *Table {
+func (t *Table) MustIn(field string, args ...any) *Table {
 	return t.Clone().Search.MustIn(field, args...).table
 }
 
 // NotIn not in
-func (t *Table) NotIn(field string, args ...interface{}) *Table {
+func (t *Table) NotIn(field string, args ...any) *Table {
 	return t.Clone().Search.NotIn(field, args...).table
 }
 
@@ -559,12 +559,12 @@ func (t *Table) OrderBy(field string, isDESC ...bool) *Table {
 }
 
 // Limit LIMIT
-func (t *Table) Limit(n interface{}) *Table {
+func (t *Table) Limit(n any) *Table {
 	return t.Clone().Search.Limit(n).table
 }
 
 // Offset OFFSET
-func (t *Table) Offset(n interface{}) *Table {
+func (t *Table) Offset(n any) *Table {
 	return t.Clone().Search.Offset(n).table
 }
 
@@ -601,7 +601,7 @@ func (t *Table) Group(fields ...string) *Table {
 }
 
 // Having Having
-func (t *Table) Having(query string, args ...interface{}) *Table {
+func (t *Table) Having(query string, args ...any) *Table {
 	return t.Clone().Search.Having(query, args...).table
 }
 
@@ -618,7 +618,7 @@ func (t *Table) Count() int {
 // FullMember
 // 传入进来的数组，是这个关键属性的所有成员。
 // 如果没有关键属性，则关键属性过滤后为整个表。
-func (t *Table) FullMember(members []map[string]string, group string, groupValue interface{}, key string) error {
+func (t *Table) FullMember(members []map[string]string, group string, groupValue any, key string) error {
 	var err error
 	memberCheckMap := make(map[string]bool, len(members))
 	for _, member := range members {
@@ -631,7 +631,7 @@ func (t *Table) FullMember(members []map[string]string, group string, groupValue
 	}
 	for _, r := range oData {
 		if !memberCheckMap[r[key]] {
-			_, err = t.Delete(map[string]interface{}{"id": r["id"]})
+			_, err = t.Delete(map[string]any{"id": r["id"]})
 			if err != nil {
 				return err
 			}
@@ -639,7 +639,7 @@ func (t *Table) FullMember(members []map[string]string, group string, groupValue
 	}
 	for _, r := range members {
 		if !oldCheckMap[r[key]] {
-			m := make(map[string]interface{}, 0)
+			m := make(map[string]any, 0)
 			for k, v := range r {
 				m[k] = v
 			}
@@ -823,7 +823,7 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte,
 }
 
 // Struct no auto query
-func (t *Table) Struct(v interface{}) error {
+func (t *Table) Struct(v any) error {
 	s := t.Search.Clone()
 	query, args := s.Parse()
 	cols, data := t.Query(query, args...).TripleByte()
@@ -847,7 +847,7 @@ func (t *Table) Struct(v interface{}) error {
 }
 
 // ToStruct auto query
-func (t *Table) ToStruct(v interface{}) error {
+func (t *Table) ToStruct(v any) error {
 	s := t.Search.Clone()
 	query, args := s.Parse()
 	cols, data := t.Query(query, args...).TripleByte()
@@ -871,13 +871,13 @@ func (t *Table) ToStruct(v interface{}) error {
 }
 
 type ModelStruct struct {
-	v   interface{}
+	v   any
 	rvp reflect.Value
 	rv  reflect.Value
 	rt  reflect.Type
 }
 
-func NewModelStruct(v interface{}) (*ModelStruct, error) {
+func NewModelStruct(v any) (*ModelStruct, error) {
 	ms := &ModelStruct{
 		v: v,
 	}
@@ -977,7 +977,7 @@ func (t *Table) DebugSwitch(isDebug bool) *Table {
 	return t
 }
 
-func (t *Table) Query(sql string, args ...interface{}) *SQLRows {
+func (t *Table) Query(sql string, args ...any) *SQLRows {
 	if t.Search.debug || t.DataBase.debug {
 		mxlog(getFullSQL(sql, args...))
 	}
@@ -989,7 +989,7 @@ func (t *Table) Query(sql string, args ...interface{}) *SQLRows {
 	return &SQLRows{rows: rows, err: err}
 }
 
-func (t *Table) Exec(sql string, args ...interface{}) *SQLResult {
+func (t *Table) Exec(sql string, args ...any) *SQLResult {
 	if t.Search.debug || t.DataBase.debug {
 		mxlog(getFullSQL(sql, args...))
 	}

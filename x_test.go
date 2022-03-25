@@ -67,7 +67,7 @@ func TestNewModelStruct(t *testing.T) {
 	ms, err := NewModelStruct(v)
 	t.Log(ms, err)
 
-	tests := []interface{}{
+	tests := []any{
 		User{},
 	}
 
@@ -146,7 +146,7 @@ func BenchmarkReflectFunc(b *testing.B) {
 }
 
 func BenchmarkAssertionFunc(b *testing.B) {
-	var u interface{} = &User{}
+	var u any = &User{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if af, ok := u.(AfterFinder); ok {
@@ -283,25 +283,25 @@ func BenchmarkReflectAStruct(b *testing.B) {
 // has many
 // many to many
 
-func isSlice(args interface{}) bool {
+func isSlice(args any) bool {
 	return reflect.TypeOf(args).Kind() == reflect.Slice
 }
 
 func TestIsSlice(t *testing.T) {
-	args := []interface{}{}
+	args := []any{}
 	if !isSlice(args) {
 		t.Fatal("fail with is slice")
 	}
 }
 
 func BenchmarkIsSlice(b *testing.B) {
-	args := []interface{}{}
+	args := []any{}
 	for i := 0; i < b.N; i++ {
 		isSlice(args)
 	}
 }
 
-func JSONStringify(v interface{}) string {
+func JSONStringify(v any) string {
 	bs, err := json.Marshal(v)
 	if err != nil {
 		return ""

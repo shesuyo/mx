@@ -10,7 +10,7 @@
 // Update
 // Read
 // SQL查询返回map[string]string
-// SQL查询返回map[string]interface{}
+// SQL查询返回map[string]any
 // SQL将查询的结构映射到结构体中
 // SQL将查询的结构映射到结构体数组中
 // BeforeCreate

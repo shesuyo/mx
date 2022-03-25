@@ -147,14 +147,14 @@ func Test_toDBName(t *testing.T) {
 
 func Test_ksvs(t *testing.T) {
 	type args struct {
-		m       map[string]interface{}
+		m       map[string]any
 		keyTail []string
 	}
 	tests := []struct {
 		name  string
 		args  args
 		want  []string
-		want1 []interface{}
+		want1 []any
 	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -215,7 +215,7 @@ func Test_structToMap(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want map[string]interface{}
+		want map[string]any
 	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -293,7 +293,7 @@ func TestMapsToCRUDRows(t *testing.T) {
 
 func Test_stringify(t *testing.T) {
 	type args struct {
-		v interface{}
+		v any
 	}
 	tests := []struct {
 		name string
@@ -314,12 +314,12 @@ func Test_stringify(t *testing.T) {
 
 func Test_copyMap(t *testing.T) {
 	type args struct {
-		m map[string]interface{}
+		m map[string]any
 	}
 	tests := []struct {
 		name string
 		args args
-		want map[string]interface{}
+		want map[string]any
 	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -471,13 +471,13 @@ func Test_stringByte(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	vals := []interface{}{
+	vals := []any{
 		float64((8.7 * 100.0) / 100.0),
 		-1,
 		0,
 		1,
 	}
-	ans := []interface{}{
+	ans := []any{
 		"8.7",
 		"-1",
 		"0",
@@ -493,7 +493,7 @@ func TestString(t *testing.T) {
 
 func TestInt(t *testing.T) {
 	type args struct {
-		v interface{}
+		v any
 	}
 	tests := []struct {
 		name string
@@ -557,7 +557,7 @@ func Test_setReflectValue(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want interface{}
+		want any
 	}{
 		{"", args{reflect.ValueOf(&i).Elem(), []byte("1")}, int(1)},
 		{"", args{reflect.ValueOf(&s).Elem(), []byte("1")}, "1"},
@@ -578,21 +578,21 @@ func Test_setReflectValue(t *testing.T) {
 
 func Test_expandSlice(t *testing.T) {
 	type args struct {
-		arg interface{}
+		arg any
 	}
 	tests := []struct {
 		name string
 		args args
-		want []interface{}
+		want []any
 	}{
-		{"", args{nil}, make([]interface{}, 0)},
-		{"", args{[]int{}}, make([]interface{}, 0)},
-		{"", args{[]int{1, 2, 3}}, []interface{}{1, 2, 3}},
-		{"", args{[]interface{}{1, 2, 3}}, []interface{}{1, 2, 3}},
-		{"", args{[]string{"1", "2", "3"}}, []interface{}{"1", "2", "3"}},
-		{"", args{[]interface{}{"1", "2", "3"}}, []interface{}{"1", "2", "3"}},
-		{"", args{1}, []interface{}{1}},
-		{"", args{"1"}, []interface{}{"1"}},
+		{"", args{nil}, make([]any, 0)},
+		{"", args{[]int{}}, make([]any, 0)},
+		{"", args{[]int{1, 2, 3}}, []any{1, 2, 3}},
+		{"", args{[]any{1, 2, 3}}, []any{1, 2, 3}},
+		{"", args{[]string{"1", "2", "3"}}, []any{"1", "2", "3"}},
+		{"", args{[]any{"1", "2", "3"}}, []any{"1", "2", "3"}},
+		{"", args{1}, []any{1}},
+		{"", args{"1"}, []any{"1"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

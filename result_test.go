@@ -85,13 +85,13 @@ func TestRowMapInterface_Strings(t *testing.T) {
 func TestRowMapInterface_Parse(t *testing.T) {
 	type args struct {
 		field string
-		val   interface{}
+		val   any
 	}
 	tests := []struct {
 		name string
 		rm   RowMapInterface
 		args args
-		want interface{}
+		want any
 	}{
 		// TODO: Add test cases.
 		{"", RowMapInterface{"ints": "[1,2,3]"}, args{field: "ints", val: &[]int{}}, []int{1, 2, 3}},
@@ -109,8 +109,8 @@ func TestRowMapInterface_Parse(t *testing.T) {
 
 func TestRowMapInterface_Interfaces(t *testing.T) {
 	// 一开始以为数据对不上是因为cap不同， 后来发现cap相同，他们还是不一样。
-	makeinteface := func(cap int, args ...interface{}) []interface{} {
-		s := make([]interface{}, 0, cap)
+	makeinteface := func(cap int, args ...any) []any {
+		s := make([]any, 0, cap)
 		s = append(s, args...)
 		return s
 	}
@@ -121,11 +121,11 @@ func TestRowMapInterface_Interfaces(t *testing.T) {
 		name string
 		rm   RowMapInterface
 		args args
-		want []interface{}
+		want []any
 	}{
 		// TODO: Add test cases.
 		{"", RowMapInterface{"field": `[1,2,3]`}, args{field: "field"}, makeinteface(4, 1.0, 2.0, 3.0)},
-		{"", RowMapInterface{"field": `["1","2","3"]`}, args{field: "field"}, []interface{}{"1", "2", "3"}},
+		{"", RowMapInterface{"field": `["1","2","3"]`}, args{field: "field"}, []any{"1", "2", "3"}},
 		{"", RowMapInterface{"field": `[1,"2",3]`}, args{field: "field"}, makeinteface(4, 1.0, "2", 3.0)},
 	}
 	for _, tt := range tests {

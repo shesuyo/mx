@@ -187,20 +187,20 @@ func (db *DataBase) Debug(isDebug bool) *DataBase {
 }
 
 // Log 打印日志
-func (db *DataBase) Log(args ...interface{}) {
+func (db *DataBase) Log(args ...any) {
 	if db.debug {
 		mxlog(args...)
 	}
 }
 
 // LogSQL 会将sql语句中的?替换成相应的参数，让DEBUG的时候可以直接复制SQL语句去使用。
-func (db *DataBase) LogSQL(sql string, args ...interface{}) {
+func (db *DataBase) LogSQL(sql string, args ...any) {
 	if db.debug {
 		mxlog(getFullSQL(sql, args...))
 	}
 }
 
-func getFullSQL(sql string, args ...interface{}) string {
+func getFullSQL(sql string, args ...any) string {
 	for _, arg := range args {
 		switch arg.(type) {
 		case int, int64, int32, int16, int8, uint64, uint32, uint16, uint8:
@@ -212,12 +212,12 @@ func getFullSQL(sql string, args ...interface{}) string {
 	return sql
 }
 
-func GetFullSQL(sql string, args ...interface{}) string {
+func GetFullSQL(sql string, args ...any) string {
 	return getFullSQL(sql, args...)
 }
 
 // 如果发生了异常就打印调用栈。
-func (db *DataBase) stack(err error, sql string, args ...interface{}) {
+func (db *DataBase) stack(err error, sql string, args ...any) {
 	buf := make([]byte, 1<<10)
 	runtime.Stack(buf, true)
 	log.Printf("%s\n%s\n%s\n", err.Error(), getFullSQL(sql, args...), buf)
@@ -228,7 +228,7 @@ func (db *DataBase) stack(err error, sql string, args ...interface{}) {
 */
 
 // Query 用于底层查询，一般是SELECT语句
-func (db *DataBase) Query(sql string, args ...interface{}) *SQLRows {
+func (db *DataBase) Query(sql string, args ...any) *SQLRows {
 	db.LogSQL(sql, args...)
 	rows, err := db.DB().Query(sql, args...)
 
@@ -239,7 +239,7 @@ func (db *DataBase) Query(sql string, args ...interface{}) *SQLRows {
 }
 
 // Exec 用于底层执行，一般是INSERT INTO、DELETE、UPDATE。
-func (db *DataBase) Exec(sql string, args ...interface{}) *SQLResult {
+func (db *DataBase) Exec(sql string, args ...any) *SQLResult {
 	db.LogSQL(sql, args...)
 	ret, err := db.DB().Exec(sql, args...)
 	if err != nil {
@@ -263,7 +263,7 @@ func (db *DataBase) DB() *sql.DB {
 // 需要按需转换成map(考虑ignore)
 // 需要检查After函数
 // TODO 一次性创建整个嵌套结构体
-func (db *DataBase) Create(obj interface{}) (int, error) {
+func (db *DataBase) Create(obj any) (int, error) {
 
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
@@ -296,7 +296,7 @@ func (db *DataBase) Create(obj interface{}) (int, error) {
 }
 
 // Creates 根据相应多个结构体进行创建
-func (db *DataBase) Creates(objs interface{}) ([]int, error) {
+func (db *DataBase) Creates(objs any) ([]int, error) {
 	ids := []int{}
 	v := reflect.ValueOf(objs)
 	if v.Kind() != reflect.Ptr {
@@ -328,7 +328,7 @@ func (db *DataBase) Creates(objs interface{}) ([]int, error) {
 }
 
 // Delete Delete
-func (db *DataBase) Delete(obj interface{}) (int, error) {
+func (db *DataBase) Delete(obj any) (int, error) {
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
 		return 0, ErrMustBeAddr
@@ -344,7 +344,7 @@ func (db *DataBase) Delete(obj interface{}) (int, error) {
 	}
 	tableName := getStructDBName(v)
 
-	count, err := db.Table(tableName).Delete(map[string]interface{}{"id": id})
+	count, err := db.Table(tableName).Delete(map[string]any{"id": id})
 	if afterFunc.IsValid() {
 		afterFunc.Call(nil)
 	}
@@ -352,7 +352,7 @@ func (db *DataBase) Delete(obj interface{}) (int, error) {
 }
 
 // Deletes Deletes
-func (db *DataBase) Deletes(objs interface{}) (int, error) {
+func (db *DataBase) Deletes(objs any) (int, error) {
 	var affCount int
 	v := reflect.ValueOf(objs)
 	if v.Kind() != reflect.Ptr {
@@ -373,7 +373,7 @@ func (db *DataBase) Deletes(objs interface{}) (int, error) {
 }
 
 // Update Update
-func (db *DataBase) Update(obj interface{}) error {
+func (db *DataBase) Update(obj any) error {
 	//根据ID进行Update
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
@@ -393,7 +393,7 @@ func (db *DataBase) Update(obj interface{}) error {
 }
 
 // Updates Updates
-func (db *DataBase) Updates(objs interface{}) (int, error) {
+func (db *DataBase) Updates(objs any) (int, error) {
 	v := reflect.ValueOf(objs)
 	if v.Kind() != reflect.Ptr {
 		return 0, ErrMustBeAddr
@@ -415,7 +415,7 @@ func (db *DataBase) Updates(objs interface{}) (int, error) {
 // 如果不传条件则是查找所有人
 // Read Find Select
 // deprecated
-func (db *DataBase) Find(obj interface{}, args ...interface{}) error {
+func (db *DataBase) Find(obj any, args ...any) error {
 	var (
 		v = reflect.ValueOf(obj)
 
@@ -505,7 +505,7 @@ func (db *DataBase) Find(obj interface{}, args ...interface{}) error {
 	根据belong查询master
 	master是要查找的，belong是已知的。
 */
-func (db *DataBase) connection(target string, got reflect.Value) ([]interface{}, bool) {
+func (db *DataBase) connection(target string, got reflect.Value) ([]any, bool) {
 	//"SELECT `master`.* FROM `master` WHERE `belong_id` = ? ", belongID
 	//"SELECT `master`.* FROM `master` LEFT JOIN `belong` ON `master`.id = `belong`.master_id WHERE `belong`.id = ?"
 	//"SELECT `master`.* FROM `master` LEFT JOIN `belong` ON `master`.belong_id = `belong`.id WHERE `belong`.id = ?"
@@ -523,7 +523,7 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]interface{},
 		// target: question
 		// select * from question where id = question_option.question_id
 		//return db.RowSQL(fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE %s = ?", gtn, gtn, "id"), got.FieldByName(ttn+"_id").Interface())
-		return []interface{}{fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE %s = ?", gtn, gtn, "id"), got.FieldByName(ToStructName(ttn + "_id")).Interface()}, true
+		return []any{fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE %s = ?", gtn, gtn, "id"), got.FieldByName(ToStructName(ttn + "_id")).Interface()}, true
 	}
 
 	if db.tableColumns[ttn].HaveColumn(gtn + "_id") {
@@ -531,7 +531,7 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]interface{},
 		//target:question_options
 		//select * from question_options where question.options.question_id = question.id
 		//		return db.RowSQL(fmt.Sprintf("SELECT * FROM `%s` WHERE %s = ?", ttn, gtn+"_id"), got.FieldByName("id").Interface())
-		return []interface{}{fmt.Sprintf("SELECT * FROM `%s` WHERE %s = ?", ttn, gtn+"_id"), got.FieldByName("ID").Interface()}, true
+		return []any{fmt.Sprintf("SELECT * FROM `%s` WHERE %s = ?", ttn, gtn+"_id"), got.FieldByName("ID").Interface()}, true
 	}
 
 	//group_section
@@ -552,16 +552,16 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]interface{},
 		if db.tableColumns[ctn].HaveColumn(gtn+"_id") && db.tableColumns[ctn].HaveColumn(ttn+"_id") {
 			//			return db.RowSQL(fmt.Sprintf("SELECT `%s`.* FROM `%s` LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = ?", ttn, ttn, ctn, ctn, ttn+"_id", ttn, "id", ctn, gtn+"_id"),
 			//				got.FieldByName("id").Interface())
-			return []interface{}{fmt.Sprintf("SELECT `%s`.* FROM `%s` LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = ?", ttn, ttn, ctn, ctn, ttn+"_id", ttn, "id", ctn, gtn+"_id"),
+			return []any{fmt.Sprintf("SELECT `%s`.* FROM `%s` LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = ?", ttn, ttn, ctn, ctn, ttn+"_id", ttn, "id", ctn, gtn+"_id"),
 				got.FieldByName("ID").Interface()}, true
 		}
 	}
 
-	return []interface{}{}, false
+	return []any{}, false
 }
 
 // FindAll 在需要的时候将自动查询结构体子结构体
-func (db *DataBase) FindAll(v interface{}, args ...interface{}) error {
+func (db *DataBase) FindAll(v any, args ...any) error {
 	if err := db.Find(v, args...); err != nil {
 		return err
 	}

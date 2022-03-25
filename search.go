@@ -28,7 +28,7 @@ func (jc JoinCons) HaveTable(tableName string) bool {
 // WhereCon where条件
 type WhereCon struct {
 	Query string
-	Args  []interface{}
+	Args  []any
 }
 
 type exprSpec uint8
@@ -41,19 +41,19 @@ const (
 // Expr 表达式
 type Expr struct {
 	State string
-	Args  []interface{}
+	Args  []any
 	spec  exprSpec
 }
 
 var (
-	ExprIncr = Expr{Args: []interface{}{1}, spec: ExprAdd} // field + ? , 1
+	ExprIncr = Expr{Args: []any{1}, spec: ExprAdd} // field + ? , 1
 )
 
 func ExprIncrNum(num int) Expr {
-	return Expr{Args: []interface{}{num}, spec: ExprAdd}
+	return Expr{Args: []any{num}, spec: ExprAdd}
 }
 
-func NewExpr(state string, args ...interface{}) Expr {
+func NewExpr(state string, args ...any) Expr {
 	return Expr{
 		State: state,
 		Args:  args,
@@ -73,11 +73,11 @@ type Search struct {
 	havingConditions  []WhereCon
 	with              string
 	having            string
-	limit             interface{}
-	offset            interface{}
+	limit             any
+	offset            any
 
 	query string
-	args  []interface{}
+	args  []any
 	raw   bool
 	debug bool
 }
@@ -104,19 +104,19 @@ func (s *Search) Fields(args ...string) *Search {
 }
 
 // Where where语法
-func (s *Search) Where(query string, values ...interface{}) *Search {
+func (s *Search) Where(query string, values ...any) *Search {
 	s.whereConditions = append(s.whereConditions, WhereCon{Query: query, Args: values})
 	return s
 }
 
 // WhereID id = ?
-func (s *Search) WhereID(id interface{}) *Search {
-	s.whereConditions = append(s.whereConditions, WhereCon{Query: s.tableName + ".id = ?", Args: []interface{}{id}})
+func (s *Search) WhereID(id any) *Search {
+	s.whereConditions = append(s.whereConditions, WhereCon{Query: s.tableName + ".id = ?", Args: []any{id}})
 	return s
 }
 
 // In in语法
-func (s *Search) In(field string, args ...interface{}) *Search {
+func (s *Search) In(field string, args ...any) *Search {
 	//in没有参数的话SQL就会报错
 	if len(args) == 0 {
 		return s
@@ -133,7 +133,7 @@ func (s *Search) In(field string, args ...interface{}) *Search {
 }
 
 // MustIn in语法
-func (s *Search) MustIn(field string, args ...interface{}) *Search {
+func (s *Search) MustIn(field string, args ...any) *Search {
 	// 强制 in nothing 就查 tableName.id<0
 	if len(args) == 0 {
 		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
@@ -152,7 +152,7 @@ func (s *Search) MustIn(field string, args ...interface{}) *Search {
 }
 
 // NotIn not in 语法
-func (s *Search) NotIn(field string, args ...interface{}) *Search {
+func (s *Search) NotIn(field string, args ...any) *Search {
 	if len(args) == 0 {
 		return s
 	}
@@ -201,13 +201,13 @@ func (s *Search) TableName(name string) *Search {
 }
 
 // Limit LIMIT ?
-func (s *Search) Limit(limit interface{}) *Search {
+func (s *Search) Limit(limit any) *Search {
 	s.limit = limit
 	return s
 }
 
 // Offset OFFSET ?
-func (s *Search) Offset(offset interface{}) *Search {
+func (s *Search) Offset(offset any) *Search {
 	s.offset = offset
 	return s
 }
@@ -219,7 +219,7 @@ func (s *Search) Group(field ...string) *Search {
 }
 
 // Having having
-func (s *Search) Having(query string, args ...interface{}) *Search {
+func (s *Search) Having(query string, args ...any) *Search {
 	s.havingConditions = append(s.havingConditions, WhereCon{Query: query, Args: args})
 	return s
 }
@@ -233,7 +233,7 @@ func (s *Search) Having(query string, args ...interface{}) *Search {
 // ORDER BY COUNT(*)
 // LIMIT 1
 // OFFSET 1
-func (s *Search) Parse() (string, []interface{}) {
+func (s *Search) Parse() (string, []any) {
 	if s.raw {
 		return s.query, s.args
 	}
@@ -252,7 +252,7 @@ func (s *Search) Parse() (string, []interface{}) {
 		s.Where(s.table.Name()+".is_deleted = ?", 0)
 	}
 	s.query = ""
-	s.args = []interface{}{}
+	s.args = []any{}
 	if len(s.fields) == 0 {
 		fields = "*"
 	} else {
@@ -520,9 +520,9 @@ func (s *Search) Bool(args ...string) bool {
 }
 
 // Finds 将查询的结构放入到结构体当中
-func (s *Search) Finds(v interface{}) error {
+func (s *Search) Finds(v any) error {
 	query, args := s.Parse()
-	return s.table.FindAll(v, append([]interface{}{query}, args...)...)
+	return s.table.FindAll(v, append([]any{query}, args...)...)
 }
 
 // //Count 计算这次查询结果的个数
