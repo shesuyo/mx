@@ -43,6 +43,7 @@ type DataBase struct {
 	tableColumns   map[string]Columns
 	dataSourceName string
 	db             *sql.DB
+	log            Logger
 
 	mm *sync.Mutex // 用于getColumns的写锁
 }
@@ -97,6 +98,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		dataSourceName: dataSourceName,
 		db:             db,
 		mm:             new(sync.Mutex),
+		log:            conf.Log,
 	}
 
 	mx.Schema = mx.Query("SELECT DATABASE()").String()
@@ -228,22 +230,50 @@ func (db *DataBase) stack(err error, sql string, args ...any) {
 */
 
 // Query 用于底层查询，一般是SELECT语句
+// Table Query实现直接调用此函数，只维护一个地方。
 func (db *DataBase) Query(sql string, args ...any) *SQLRows {
+	st := time.Now()
 	db.LogSQL(sql, args...)
 	rows, err := db.DB().Query(sql, args...)
-
+	lsd := LogSqlData{
+		Sql:      getFullSQL(sql, args...),
+		Duration: time.Now().Sub(st),
+		Callers:  getCallers(),
+		Err:      err,
+		Way:      QueryWay,
+	}
 	if err != nil {
 		db.stack(err, sql, args...)
+		if db.log != nil {
+			db.log.ErrSql(lsd)
+		}
+	}
+	if db.log != nil {
+		db.log.LogSql(lsd)
 	}
 	return &SQLRows{rows: rows, err: err}
 }
 
 // Exec 用于底层执行，一般是INSERT INTO、DELETE、UPDATE。
 func (db *DataBase) Exec(sql string, args ...any) *SQLResult {
+	st := time.Now()
 	db.LogSQL(sql, args...)
 	ret, err := db.DB().Exec(sql, args...)
+	lsd := LogSqlData{
+		Sql:      getFullSQL(sql, args...),
+		Duration: time.Now().Sub(st),
+		Callers:  getCallers(),
+		Err:      err,
+		Way:      ExecWay,
+	}
 	if err != nil {
 		db.stack(err, sql, args...)
+		if db.log != nil {
+			db.log.ErrSql(lsd)
+		}
+	}
+	if db.log != nil {
+		db.log.LogSql(lsd)
 	}
 	return &SQLResult{result: ret, err: err}
 }

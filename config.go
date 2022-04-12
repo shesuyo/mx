@@ -1,5 +1,9 @@
 package mx
 
+import (
+	"time"
+)
+
 // config var
 var (
 	DefaultMaxIdleConns = 10
@@ -16,7 +20,36 @@ type Config struct {
 	DataSourceName string
 	MaxIdleConns   int
 	MaxOpenConns   int
+	Log            Logger
 }
+
+type Logger interface {
+	LogSql(LogSqlData)
+	ErrSql(LogSqlData)
+}
+
+type LogSqlData struct {
+	Sql      string        `json:"sql"`
+	Duration time.Duration `json:"duration"`
+	Callers  LogSqlCallers `json:"callers"`
+	Way      LogSqlWay     `json:"way"` // Query Exec
+	Err      error         `json:"err"`
+}
+
+type LogSqlWay int
+
+var (
+	QueryWay LogSqlWay = 1
+	ExecWay  LogSqlWay = 2
+)
+
+type LogSqlCaller struct {
+	Function string `json:"function"`
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+}
+
+type LogSqlCallers []LogSqlCaller
 
 func (config *Config) parse() {
 

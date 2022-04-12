@@ -978,24 +978,15 @@ func (t *Table) DebugSwitch(isDebug bool) *Table {
 }
 
 func (t *Table) Query(sql string, args ...any) *SQLRows {
-	if t.Search.debug || t.DataBase.debug {
+	if t.Search.debug && !t.DataBase.debug {
 		mxlog(getFullSQL(sql, args...))
 	}
-	rows, err := t.DB().Query(sql, args...)
-
-	if err != nil {
-		t.stack(err, sql, args...)
-	}
-	return &SQLRows{rows: rows, err: err}
+	return t.DataBase.Query(sql, args...)
 }
 
 func (t *Table) Exec(sql string, args ...any) *SQLResult {
-	if t.Search.debug || t.DataBase.debug {
+	if t.Search.debug && !t.DataBase.debug {
 		mxlog(getFullSQL(sql, args...))
 	}
-	ret, err := t.DB().Exec(sql, args...)
-	if err != nil {
-		t.stack(err, sql, args...)
-	}
-	return &SQLResult{result: ret, err: err}
+	return t.DataBase.Exec(sql, args...)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -553,4 +554,31 @@ func expandSlice(arg any) []any {
 
 func mxlog(args ...any) {
 	log.Println(args...)
+}
+
+func getCallers() LogSqlCallers {
+	callers := LogSqlCallers{}
+	pcs := make([]uintptr, 32)
+	// skip getCallers()
+	callDep := runtime.Callers(2, pcs)
+	frames := runtime.CallersFrames(pcs[:callDep])
+	for {
+		// frame: {"PC":13310021,"Func":{},"Function":"github.com/shesuyo/mx.getCallers","File":"C:/code/gopath/src/github.com/shesuyo/mx/utils.go","Line":562,"Entry":13309952}
+		frame, ok := frames.Next()
+		if strings.Index(frame.Function, "github.com/shesuyo/mx") == 0 {
+			continue
+		}
+		callers = append(callers, LogSqlCaller{
+			Function: frame.Function,
+			File:     frame.File,
+			Line:     frame.Line,
+		})
+		if frame.Function == "main.main" {
+			break
+		}
+		if !ok {
+			break
+		}
+	}
+	return callers
 }
