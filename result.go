@@ -276,6 +276,17 @@ func (rm RowMap) Int32(field string, def ...int32) int32 {
 	return 0
 }
 
+// Incr
+func (rm RowMap) Incr(field string, num ...int) int {
+	val := 1
+	if len(num) > 0 {
+		val = num[0]
+	}
+	next := rm.Int(field) + val
+	rm[field] = String(next)
+	return next
+}
+
 // Strings return []string field
 func (rm RowMap) Strings(field string) []string {
 	s := make([]string, 0)
