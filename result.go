@@ -503,6 +503,17 @@ func (rm RowsMap) Filter(field, equal string) RowsMap {
 	return frm
 }
 
+// Filter 过滤指定字段
+func (rm RowsMap) FilterContains(field, equal string) RowsMap {
+	frm := RowsMap{}
+	for _, v := range rm {
+		if strings.Contains(v[field], equal) {
+			frm = append(frm, v)
+		}
+	}
+	return frm
+}
+
 // FilterIn 指定字段在数组里面皆会被挑选出来
 func (rm RowsMap) FilterIn(field string, equals []string) RowsMap {
 	em := make(map[string]bool, len(equals))
