@@ -158,7 +158,7 @@ func (t *Table) Save(obj any) (rsp *SaveResp, err error) {
 			}
 			m := structToMap(v, t)
 			for k, v := range m {
-				if k == "id" && v == "" {
+				if k == "id" && (v == "" || v == 0) {
 					delete(m, "id")
 				}
 				if (t.Columns[k].DataType == "datetime" || t.Columns[k].DataType == "date") && v == "" {

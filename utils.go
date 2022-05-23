@@ -218,11 +218,11 @@ func structToMap(v reflect.Value, table *Table) map[string]any {
 		}
 		refField := v.Field(i)
 		fieldVal := refField.Interface()
-		if fieldVal == "" {
-			if tags[i] == "id" ||
-				table.Columns[tags[i]].DataType == "datetime" {
-				continue
-			}
+		if tags[i] == "id" && (fieldVal == "" || fieldVal == 0) {
+			continue
+		}
+		if fieldVal == "" && (table.Columns[tags[i]].DataType == "datetime" || table.Columns[tags[i]].DataType == "date") {
+			continue
 		}
 		if refField.Kind() == reflect.Struct || refField.Kind() == reflect.Slice {
 			bs, err := json.Marshal(fieldVal)
