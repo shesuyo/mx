@@ -505,6 +505,9 @@ func (rm RowsMap) Filter(field, equal string) RowsMap {
 
 // Filter 过滤指定字段
 func (rm RowsMap) FilterContains(fields []string, equal string) RowsMap {
+	if equal == "" {
+		return rm
+	}
 	frm := RowsMap{}
 	for _, v := range rm {
 		isMatch := false
