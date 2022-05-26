@@ -504,10 +504,17 @@ func (rm RowsMap) Filter(field, equal string) RowsMap {
 }
 
 // Filter 过滤指定字段
-func (rm RowsMap) FilterContains(field, equal string) RowsMap {
+func (rm RowsMap) FilterContains(fields []string, equal string) RowsMap {
 	frm := RowsMap{}
 	for _, v := range rm {
-		if strings.Contains(v[field], equal) {
+		isMatch := false
+		for _, field := range fields {
+			if strings.Contains(v[field], equal) {
+				isMatch = true
+				break
+			}
+		}
+		if isMatch {
 			frm = append(frm, v)
 		}
 	}
