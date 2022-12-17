@@ -129,14 +129,16 @@ func (t *Table) IDRow(id any) RowMap {
 }
 
 /*
-	map[string]interface{} 增删改查
+map[string]interface{} 增删改查
 */
 type SaveResp struct {
 	ID         int
 	RowsAffect int
 }
 
-func (t *Table) Save(obj any) (rsp *SaveResp, err error) {
+type OmitFields []string
+
+func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 	rsp = &SaveResp{}
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
@@ -157,6 +159,14 @@ func (t *Table) Save(obj any) (rsp *SaveResp, err error) {
 				return rsp, err
 			}
 			m := structToMap(v, t)
+			for _, arg := range args {
+				switch plug := arg.(type) {
+				case OmitFields:
+					for _, field := range plug {
+						delete(m, field)
+					}
+				}
+			}
 			for k, v := range m {
 				if k == "id" && (v == "" || v == 0) {
 					delete(m, "id")
@@ -179,6 +189,14 @@ func (t *Table) Save(obj any) (rsp *SaveResp, err error) {
 				return rsp, err
 			}
 			m := structToMap(v, t)
+			for _, arg := range args {
+				switch plug := arg.(type) {
+				case OmitFields:
+					for _, field := range plug {
+						delete(m, field)
+					}
+				}
+			}
 			ra, err := t.Update(m)
 			if err != nil {
 				return rsp, err
@@ -208,7 +226,6 @@ func (t *Table) Save(obj any) (rsp *SaveResp, err error) {
 // Create 创建
 // check 如果有，则会判断表里面以这几个字段为唯一的话，数据库是否存在此条数据，如果有就不插入了。
 // 所有ORM的底层。FormXXX， (*DataBase)CRUD
-//
 func (t *Table) Create(m map[string]any, checks ...string) (int, error) {
 	//INSERT INTO `feedback` (`task_id`, `template_question_id`, `question_options_id`, `suggestion`, `member_id`) VALUES ('1', '1', '1', '1', '1')
 	if len(checks) > 0 {
@@ -424,9 +441,9 @@ func (t *Table) WherePeriod(field, st, et string) *Table {
 // WhereStartEndDay DATE_FORMAT(field, '%Y-%m-%d') >= startTime AND DATE_FORMAT(field, '%Y-%m-%d') <= endTime
 // if startDay == "", will do nothing
 // if endDay == "", endDay = startDay
-// '','' => return
-// '2017-07-01', '' => '2017-07-01', '2017-07-01'
-// '', '2017-07-02' => '','2017-07-02' (TODO)
+// ”,” => return
+// '2017-07-01', ” => '2017-07-01', '2017-07-01'
+// ”, '2017-07-02' => ”,'2017-07-02' (TODO)
 // '2017-07-01','2017-07-02' => '2017-07-02','2017-07-01'
 func (t *Table) WhereStartEndDay(field, startDay, endDay string) *Table {
 	if startDay == "" && endDay == "" {
