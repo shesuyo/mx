@@ -634,9 +634,9 @@ func (rm RowsMap) EachMod(f func(RowMap)) RowsMap {
 
 // RowsMapGroup 用于对一个字段进行分组
 type RowsMapGroup struct {
-	Key  string   `json:"key"`
-	Len  int      `json:"len"`
-	Vals []RowMap `json:"vals"`
+	Key  string  `json:"key"`
+	Len  int     `json:"len"`
+	Vals RowsMap `json:"vals"`
 }
 
 // GroupByField 用field字段进行分组
