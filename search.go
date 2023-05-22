@@ -327,23 +327,23 @@ func (s *Search) warpField(field string) (warpStr string, tablename string, fiel
 			sp := strings.Split(field, " ")
 			for i := 0; i < len(sp); i++ {
 				if sp[i] == "AS" {
-					sp[i-1], tablename, fieldname = s.warpFieldSingel(sp[i-1])
+					sp[i-1], tablename, fieldname = s.warpFieldSingle(sp[i-1])
 					warpStr = strings.Join(sp, " ")
 					break
 				}
 			}
 		} else {
 			sp := strings.Split(field, " ")
-			sp[len(sp)-1], tablename, fieldname = s.warpFieldSingel(sp[len(sp)-1])
+			sp[len(sp)-1], tablename, fieldname = s.warpFieldSingle(sp[len(sp)-1])
 			warpStr = strings.Join(sp, " ")
 		}
 	} else {
-		return s.warpFieldSingel(field)
+		return s.warpFieldSingle(field)
 	}
 	return
 }
 
-// warpFieldSingel field without space
+// warpFieldSingle field without space
 // warp xxx OR xxx.xxx OR * OR COUNT(*) OR tablename.*
 // 这里的都没有空格的
 // 单个属性 id
@@ -351,7 +351,7 @@ func (s *Search) warpField(field string) (warpStr string, tablename string, fiel
 // 表名.*
 // COUNT(1)之类的函数
 // DATE_FORMAT(repair.createdtime,'%Y-%m-%d')
-func (s *Search) warpFieldSingel(field string) (warpStr string, tablename string, fieldname string) {
+func (s *Search) warpFieldSingle(field string) (warpStr string, tablename string, fieldname string) {
 	if strings.Contains(field, ".") {
 		sp := strings.Split(field, ".")
 		tablename = sp[0]

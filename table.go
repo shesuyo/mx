@@ -1007,3 +1007,10 @@ func (t *Table) Exec(sql string, args ...any) *SQLResult {
 	}
 	return t.DataBase.Exec(sql, args...)
 }
+
+type QueryFunc func(*Table)
+
+func (t *Table) QueryFunc(f QueryFunc) *Table {
+	f(t)
+	return t
+}
