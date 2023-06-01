@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -556,7 +555,7 @@ func expandSlice(arg any) []any {
 }
 
 func mxlog(args ...any) {
-	log.Println(args...)
+	fmt.Println(args...)
 }
 
 func getCallers() LogSqlCallers {

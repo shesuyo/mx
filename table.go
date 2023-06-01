@@ -345,6 +345,7 @@ func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
 		vs...,
 	).RowsAffected()
 	if err != nil {
+		fmt.Println(err)
 		// 可能是语法，也可能是执行错误。
 		return 0, ErrExec
 	}

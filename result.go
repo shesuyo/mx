@@ -1087,30 +1087,50 @@ func (rm RowMapInterface) RowMap() RowMap {
 }
 
 // Pluck pluck from RowsMapInterface
-func (rs RowsMapInterface) Pluck(field string) []any {
-	out := make([]any, 0, len(rs))
-	for _, r := range rs {
+func (rm RowsMapInterface) Pluck(field string) []any {
+	out := make([]any, 0, len(rm))
+	for _, r := range rm {
 		out = append(out, r[field])
 	}
 	return out
 }
 
 // Sort sort RowsMapInterface
-func (rs RowsMapInterface) Sort(field string, isDesc ...bool) {
-	if len(rs) == 0 {
+func (rm RowsMapInterface) Sort(field string, isDesc ...bool) {
+	if len(rm) == 0 {
 		return
 	}
 	kind := reflect.String
-	switch rs[0][field].(type) {
+	switch rm[0][field].(type) {
 	case int:
 		kind = reflect.Int
 	}
 	sort.Sort(rowsMapInterfaceSort{
-		rs:    rs,
+		rs:    rm,
 		field: field,
 		desc:  len(isDesc) > 0 && isDesc[0],
 		kind:  kind,
 	})
+}
+
+func (rm RowsMapInterface) Filter(field string, equal any) RowsMapInterface {
+	frm := RowsMapInterface{}
+	for _, v := range rm {
+		if v.String(field) == equal {
+			frm = append(frm, v)
+		}
+	}
+	return frm
+}
+
+func (rm RowsMapInterface) FilterFunc(equalF func(RowMapInterface) bool) RowsMapInterface {
+	frm := RowsMapInterface{}
+	for _, v := range rm {
+		if equalF(v) {
+			frm = append(frm, v)
+		}
+	}
+	return frm
 }
 
 type rowsMapInterfaceSort struct {
