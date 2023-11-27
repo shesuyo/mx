@@ -12,6 +12,7 @@ var (
 	DefaultConfig = Config{
 		MaxIdleConns: DefaultMaxIdleConns,
 		MaxOpenConns: DefaultMaxOpenConns,
+		Timeout:      2 * time.Second,
 	}
 )
 
@@ -21,6 +22,7 @@ type Config struct {
 	MaxIdleConns   int
 	MaxOpenConns   int
 	Log            Logger
+	Timeout        time.Duration
 }
 
 type Logger interface {

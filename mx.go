@@ -1,7 +1,6 @@
 package mx
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -39,6 +38,7 @@ var (
 type DataBase struct {
 	debug bool
 
+	Driver         string
 	Schema         string //数据库名
 	tableColumns   map[string]Columns
 	dataSourceName string
@@ -65,14 +65,11 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		if err != nil {
 			return nil, err
 		}
-		db.SetMaxIdleConns(conf.MaxIdleConns)
-		db.SetMaxOpenConns(conf.MaxOpenConns)
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := db.PingContext(ctx); err != nil {
+		if err = checkDBInit(db, conf); err != nil {
 			return nil, err
 		}
 		mx := &DataBase{
+			Driver:         "postgres",
 			debug:          false,
 			tableColumns:   make(map[string]Columns),
 			dataSourceName: dataSourceName,
@@ -81,15 +78,30 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		}
 		return mx, nil
 	}
+	if strings.HasPrefix(dataSourceName, "dm://") {
+		db, err := sql.Open("dm", dataSourceName)
+		if err != nil {
+			return nil, err
+		}
+		if err = checkDBInit(db, conf); err != nil {
+			return nil, err
+		}
+		mx := &DataBase{
+			Driver:         "dm",
+			debug:          false,
+			tableColumns:   make(map[string]Columns),
+			dataSourceName: dataSourceName,
+			db:             db,
+			mm:             new(sync.Mutex),
+		}
+		return mx, nil
+	}
+
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
+	if err = checkDBInit(db, conf); err != nil {
 		return nil, err
 	}
 	mx := &DataBase{
@@ -103,7 +115,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 
 	mx.Schema = mx.Query("SELECT DATABASE()").String()
 	if mx.Schema == "" {
-		log.Println("FBI WARNING: 这是一个没有选择数据库的链接。")
+		log.Println("MX WARNING: 这是一个没有选择数据库的链接。")
 	}
 	tables := mx.Query("SELECT TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,COLUMN_COMMENT,COLUMN_TYPE,DATA_TYPE,IS_NULLABLE FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ?", mx.Schema).RowsMap().MapIndexs("TABLE_NAME")
 
@@ -123,6 +135,25 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		mx.tableColumns[tableName] = cm
 	}
 	return mx, nil
+}
+
+func checkDBInit(db *sql.DB, conf Config) error {
+	pingErr := make(chan error)
+	go func(pingErr chan error) {
+		err := db.Ping()
+		pingErr <- err
+	}(pingErr)
+	select {
+	case err := <-pingErr:
+		if err != nil {
+			return err
+		}
+	case <-time.After(conf.Timeout):
+		return errors.New("连接超时")
+	}
+	db.SetMaxIdleConns(conf.MaxIdleConns)
+	db.SetMaxOpenConns(conf.MaxOpenConns)
+	return nil
 }
 
 /*
@@ -237,7 +268,7 @@ func (db *DataBase) Query(sql string, args ...any) *SQLRows {
 	rows, err := db.DB().Query(sql, args...)
 	lsd := LogSqlData{
 		Sql:      getFullSQL(sql, args...),
-		Duration: time.Now().Sub(st),
+		Duration: time.Since(st),
 		Callers:  getCallers(),
 		Err:      err,
 		Way:      QueryWay,
@@ -251,7 +282,7 @@ func (db *DataBase) Query(sql string, args ...any) *SQLRows {
 	if db.log != nil {
 		db.log.LogSql(lsd)
 	}
-	return &SQLRows{rows: rows, err: err}
+	return &SQLRows{rows: rows, err: err, driver: db.Driver}
 }
 
 // Exec 用于底层执行，一般是INSERT INTO、DELETE、UPDATE。
@@ -261,7 +292,7 @@ func (db *DataBase) Exec(sql string, args ...any) *SQLResult {
 	ret, err := db.DB().Exec(sql, args...)
 	lsd := LogSqlData{
 		Sql:      getFullSQL(sql, args...),
-		Duration: time.Now().Sub(st),
+		Duration: time.Since(st),
 		Callers:  getCallers(),
 		Err:      err,
 		Way:      ExecWay,

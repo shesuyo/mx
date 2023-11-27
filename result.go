@@ -15,8 +15,9 @@ import (
 
 // SQLRows 查询后的返回结果
 type SQLRows struct {
-	rows *sql.Rows
-	err  error
+	driver string
+	rows   *sql.Rows
+	err    error
 }
 
 type SQLResult struct {
@@ -1187,10 +1188,10 @@ func (p rowsMapInterfaceSort) Swap(i, j int) { p.rs[i], p.rs[j] = p.rs[j], p.rs[
 
 // RowsMap []map[string]string 所有类型都将返回字符串类型
 func (r *SQLRows) RowsMap() RowsMap {
+	if r.driver == "dm" {
+		return r.dmRowsMap()
+	}
 	rs := make([]RowMap, 0) //为了JSON输出的时候为[]
-	//rs := []map[string]string{} //这样在JSON输出的时候是null
-
-	//panic: runtime error: invalid memory address or nil pointer dereference
 	if r.err != nil {
 		return rs
 	}
