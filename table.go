@@ -298,6 +298,7 @@ func (t *Table) DeleteIDs(args ...any) (int, error) {
 }
 
 // Delete 删除
+// Delete和Update不同，会删除所有数据。
 func (t *Table) Delete(m map[string]any) (int, error) {
 	if len(m) == 0 {
 		return 0, ErrNoDeleteKey
@@ -313,6 +314,7 @@ func (t *Table) Delete(m map[string]any) (int, error) {
 
 // Update 更新
 // 如果map里面有id的话会自动删除id，然后使用id来作为更新的条件。
+// 为防止数据错误更新，Update只会更新一条数据。
 func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
 	id := m["id"]
 	if len(keys) == 0 {
@@ -332,9 +334,7 @@ func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
 	// 因为在更新的时候最好不要更新id，而有时候又会将id传入进来，所以id每次都会被删除，如果要更新id的话使用Exec(),但强烈不推荐修改id！
 	delete(m, "id")
 	ks, vs := ksvs(m, " = ? ")
-	for _, val := range keysValue {
-		vs = append(vs, val)
-	}
+	vs = append(vs, keysValue...)
 	m["id"] = id
 	ra, err := t.Exec(
 		fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1",
