@@ -315,6 +315,11 @@ func (r RowMap) Unmarshal(field string, v any) error {
 	return json.Unmarshal([]byte(r[field]), v)
 }
 
+// RowsMap 旧代码适配
+func (rm RowsMap) RowsMap() RowsMap {
+	return rm
+}
+
 // Copy 复制一份
 func (rm RowsMap) Copy() RowsMap {
 	nrm := make(RowsMap, len(rm))
