@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/shesuyo/mx"
 )
 
 // Table 表结构体
@@ -543,8 +541,8 @@ func (t *Table) In(field string, args ...any) *Table {
 }
 
 // InBatch batch in query
-func (t *Table) InBatch(batchSize int, field string, args ...any) mx.RowsMap {
-	rs := mx.RowsMap{}
+func (t *Table) InBatch(batchSize int, field string, args ...any) RowsMap {
+	rs := RowsMap{}
 	for i := 0; i < len(args); i += batchSize {
 		end := i + batchSize
 		if end > len(args) {
@@ -558,7 +556,7 @@ func (t *Table) InBatch(batchSize int, field string, args ...any) mx.RowsMap {
 }
 
 // InAuto InBatch 700
-func (t *Table) InAuto(field string, args ...any) mx.RowsMap {
+func (t *Table) InAuto(field string, args ...any) RowsMap {
 	return t.InBatch(700, field, args...)
 }
 
