@@ -557,6 +557,11 @@ func (t *Table) InBatch(batchSize int, field string, args ...any) mx.RowsMap {
 	return rs
 }
 
+// InAuto InBatch 700
+func (t *Table) InAuto(field string, args ...any) mx.RowsMap {
+	return t.InBatch(700, field, args...)
+}
+
 // InWhere In(field, 1,2,3) to Where("field >= min AND field <= max")
 func (t *Table) InWhere(field string, args ...int) *Table {
 	min := math.MaxInt
