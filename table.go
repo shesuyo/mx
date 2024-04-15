@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shesuyo/mx"
 )
 
 // Table 表结构体
@@ -538,6 +540,21 @@ func (t *Table) WhereID(id any) *Table {
 // In In(field, a,b,c)
 func (t *Table) In(field string, args ...any) *Table {
 	return t.Clone().Search.In(field, args...).table
+}
+
+// InBatch batch in query
+func (t *Table) InBatch(batchSize int, field string, args ...any) mx.RowsMap {
+	rs := mx.RowsMap{}
+	for i := 0; i < len(args); i += batchSize {
+		end := i + batchSize
+		if end > len(args) {
+			end = len(args)
+		}
+		batch := args[i:end]
+		batchRows := t.Clone().Search.In(field, batch...).table.RowsMap()
+		rs = append(rs, batchRows...)
+	}
+	return rs
 }
 
 // InWhere In(field, 1,2,3) to Where("field >= min AND field <= max")
