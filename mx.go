@@ -96,6 +96,24 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		}
 		return mx, nil
 	}
+	if strings.HasPrefix(dataSourceName, "db2://") {
+		db, err := sql.Open("go_ibm_db", dataSourceName[6:])
+		if err != nil {
+			return nil, err
+		}
+		if err = checkDBInit(db, conf); err != nil {
+			return nil, err
+		}
+		mx := &DataBase{
+			Driver:         "db2",
+			debug:          false,
+			tableColumns:   make(map[string]Columns),
+			dataSourceName: dataSourceName,
+			db:             db,
+			mm:             new(sync.Mutex),
+		}
+		return mx, nil
+	}
 
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
