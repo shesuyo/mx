@@ -49,7 +49,7 @@ var (
 	ExprIncr = Expr{Args: []any{1}, spec: ExprAdd} // field + ? , 1
 )
 
-func ExprIncrNum(num int) Expr {
+func ExprIncrNum(num any) Expr {
 	return Expr{Args: []any{num}, spec: ExprAdd}
 }
 
