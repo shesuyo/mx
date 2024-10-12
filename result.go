@@ -396,6 +396,10 @@ func (rm RowsMap) Interface() RowsMapInterface {
 }
 
 // MapIndex 按照指定field划分成map[string]RowMap
+// MapIndex 默认是 MapIndexStringRow
+// 当key为string的时候可以省略String
+// 当value为对应（Index->RowMap）(Indexs->RowsMap)时，可省略Row(s)Map。
+// 当key为string，value为特殊命名时（Exist）可省略String
 func (rm RowsMap) MapIndex(field string) map[string]RowMap {
 	sr := make(map[string]RowMap, len(rm))
 	for _, r := range rm {
@@ -405,6 +409,7 @@ func (rm RowsMap) MapIndex(field string) map[string]RowMap {
 }
 
 // MapIndexExist 按照指定field划分成map[string]bool
+// MapIndexStringBool -> MapIndexExist
 func (rm RowsMap) MapIndexExist(field string) map[string]bool {
 	sr := make(map[string]bool, len(rm))
 	for _, r := range rm {
@@ -414,7 +419,18 @@ func (rm RowsMap) MapIndexExist(field string) map[string]bool {
 }
 
 // MapIndexExistInt 按照指定field划分成map[int]bool
+// Deprecated: 请用 MapIndexIntExist
 func (rm RowsMap) MapIndexExistInt(field string) map[int]bool {
+	sr := make(map[int]bool, len(rm))
+	for _, r := range rm {
+		sr[r.Int(field)] = true
+	}
+	return sr
+}
+
+// MapIndexIntExist 按照指定field划分成map[int]bool
+// alias MapIndexIntBool
+func (rm RowsMap) MapIndexIntExist(field string) map[int]bool {
 	sr := make(map[int]bool, len(rm))
 	for _, r := range rm {
 		sr[r.Int(field)] = true
@@ -432,6 +448,8 @@ func (rm RowsMap) MapIndexInt(field string) map[int]RowMap {
 }
 
 // MapIndexKV 按照key，val 转换成 map[string]string
+// alias MapIndexStringString
+// KV为特殊命名，表示StringString
 func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
 	ss := make(map[string]string, len(rm))
 	for _, r := range rm {
@@ -441,6 +459,7 @@ func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
 }
 
 // MapIndexIntKV 按照key，val 转换成 map[int]string
+// Deprecated: 请用 MapIndexIntString
 func (rm RowsMap) MapIndexIntKV(key, val string) map[int]string {
 	ss := make(map[int]string, len(rm))
 	for _, r := range rm {
@@ -449,11 +468,37 @@ func (rm RowsMap) MapIndexIntKV(key, val string) map[int]string {
 	return ss
 }
 
+func (rm RowsMap) MapIndexIntString(key, val string) map[int]string {
+	ss := make(map[int]string, len(rm))
+	for _, r := range rm {
+		ss[r.Int(key)] = r[val]
+	}
+	return ss
+}
+
 // MapIndexIntKVInt 按照key，val 转换成 map[int]int
+// Deprecated: 请用 MapIndexIntInt
 func (rm RowsMap) MapIndexIntKVInt(key, val string) map[int]int {
 	ss := make(map[int]int, len(rm))
 	for _, r := range rm {
 		ss[r.Int(key)] = r.Int(val)
+	}
+	return ss
+}
+
+func (rm RowsMap) MapIndexIntInt(key, val string) map[int]int {
+	ss := make(map[int]int, len(rm))
+	for _, r := range rm {
+		ss[r.Int(key)] = r.Int(val)
+	}
+	return ss
+}
+
+// MapIndexIntFloat 按照key，val 转换成 map[int]float64
+func (rm RowsMap) MapIndexIntFloat(key, val string) map[int]float64 {
+	ss := make(map[int]float64, len(rm))
+	for _, r := range rm {
+		ss[r.Int(key)] = r.Float64(val)
 	}
 	return ss
 }
@@ -870,10 +915,6 @@ func (rm RowsMap) MultiWarpByField(fields ...string) MultiWarps {
 			}
 		}
 	}
-	// jsonText := any.JSONStringify(levels[0])
-	// fmt.Println("write", len(jsonText))
-	// ioutil.WriteFile("a.json", []byte(jsonText), 0777)
-	// fmt.Println("done")
 	if levels[0] == nil {
 		return []MultiWarp{}
 	}
@@ -990,7 +1031,7 @@ func (rs RowsMapSort) Less(i, j int) bool {
 }
 
 // Sort sort by string field
-// default aes
+// default asc
 func (rm *RowsMap) Sort(field string, isDesc bool) *RowsMap {
 	return rm.SortFunc(func(rm RowsMap, i, j int) bool {
 		if isDesc {
@@ -1419,6 +1460,8 @@ func (r *SQLRows) setValue(v reflect.Value, i any) {
 			v.Set(reflect.ValueOf(Int(i)))
 		case reflect.String:
 			v.Set(reflect.ValueOf(String(i)))
+		case reflect.Float64:
+			v.SetFloat(Float(i))
 		default:
 			v.Set(reflect.ValueOf(i))
 		}

@@ -385,6 +385,11 @@ func String(v any) string {
 	return s
 }
 
+func Float(v any) float64 {
+	f, _ := strconv.ParseFloat(String(v), 64)
+	return f
+}
+
 // Int 将传入的值转换成int
 func Int(v any) int {
 	var i int
