@@ -921,11 +921,11 @@ func NewModelStruct(v any) (*ModelStruct, error) {
 	}
 	ms.rvp = reflect.ValueOf(v)
 	if ms.rvp.Kind() != reflect.Ptr {
-		return nil, errors.New("Value Can't Addr.")
+		return nil, errors.New("value can't addr")
 	}
 	ms.rv = ms.rvp.Elem()
 	if !ms.rv.CanAddr() {
-		return nil, errors.New("Value Can't Addr.")
+		return nil, errors.New("value can't addr")
 	}
 	ms.rt = ms.rv.Type()
 	return ms, nil

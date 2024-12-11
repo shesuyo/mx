@@ -377,6 +377,17 @@ func (rm RowsMap) SumByFieldEq(field, eqField, eq string) int {
 	return sum
 }
 
+// Max return max field
+func (rm RowsMap) Max(field string) string {
+	max := ""
+	for _, r := range rm {
+		if r[field] > max {
+			max = r[field]
+		}
+	}
+	return max
+}
+
 // String return map[string]string
 func (rm RowsMap) String() []map[string]string {
 	ms := []map[string]string{}

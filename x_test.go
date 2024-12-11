@@ -3,6 +3,7 @@ package mx
 import (
 	"database/sql"
 	"encoding/json"
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -10,6 +11,9 @@ import (
 
 // go test -coverprofile=c.out
 // go tool cover -html=c.out -o coverage.html
+
+var db, _ = NewDataBase(os.Getenv("MX_DSN"))
+var UserTable = db.Table("user")
 
 func TestQuery1(t *testing.T) {
 	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
@@ -225,9 +229,6 @@ func BenchmarkSliceGet19(b *testing.B) {
 		}
 	}
 }
-
-var db, _ = NewDataBase("root:WOaini123@tcp(localhost:3306)/demo?charset=utf8mb4")
-var UserTable = db.Table("user")
 
 func BenchmarkClone(b *testing.B) {
 	for i := 0; i < b.N; i++ {
