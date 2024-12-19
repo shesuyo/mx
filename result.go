@@ -487,6 +487,14 @@ func (rm RowsMap) MapIndexIntString(key, val string) map[int]string {
 	return ss
 }
 
+func (rm RowsMap) MapIndexStringInt(key, val string) map[string]int {
+	ss := make(map[string]int, len(rm))
+	for _, r := range rm {
+		ss[key] = r.Int(val)
+	}
+	return ss
+}
+
 // MapIndexIntKVInt 按照key，val 转换成 map[int]int
 // Deprecated: 请用 MapIndexIntInt
 func (rm RowsMap) MapIndexIntKVInt(key, val string) map[int]int {
