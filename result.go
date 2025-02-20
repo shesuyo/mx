@@ -490,7 +490,7 @@ func (rm RowsMap) MapIndexIntString(key, val string) map[int]string {
 func (rm RowsMap) MapIndexStringInt(key, val string) map[string]int {
 	ss := make(map[string]int, len(rm))
 	for _, r := range rm {
-		ss[key] = r.Int(val)
+		ss[r[key]] = r.Int(val)
 	}
 	return ss
 }
