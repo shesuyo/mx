@@ -327,6 +327,10 @@ func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
 		if !ok {
 			return 0, ErrNoUpdateKey
 		}
+		// 如果key有特殊字符，可能是构造的攻击
+		if strings.Contains(key, " ") || strings.Contains(key, "/") || strings.Contains(key, "--") {
+			return 0, ErrMayBeAttack
+		}
 		keysValue = append(keysValue, val)
 		delete(m, key)
 		whereks = append(whereks, "`"+key+"` = ? ")

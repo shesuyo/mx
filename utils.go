@@ -265,19 +265,6 @@ func MapsToCRUDRows(m []map[string]string) RowsMap {
 	return rm
 }
 
-func stringify(v any) string {
-	bs, _ := json.Marshal(&v)
-	return string(bs)
-}
-
-func copyMap(m map[string]any) map[string]any {
-	newm := make(map[string]any, len(m))
-	for k, v := range m {
-		newm[k] = v
-	}
-	return newm
-}
-
 // WhereTimeParse 将时间段转换成对应SQL [)
 func WhereTimeParse(field, ts string, years, months, days int) string {
 	// (createdtime >= '2018-01-01 00:00:00' AND createdtime < '2018-01-02 00:00:00')

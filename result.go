@@ -429,8 +429,8 @@ func (rm RowsMap) MapIndexExist(field string) map[string]bool {
 	return sr
 }
 
-// MapIndexExistInt 按照指定field划分成map[int]bool
 // Deprecated: 请用 MapIndexIntExist
+// MapIndexExistInt 按照指定field划分成map[int]bool
 func (rm RowsMap) MapIndexExistInt(field string) map[int]bool {
 	sr := make(map[int]bool, len(rm))
 	for _, r := range rm {
@@ -469,8 +469,8 @@ func (rm RowsMap) MapIndexKV(key, val string) map[string]string {
 	return ss
 }
 
-// MapIndexIntKV 按照key，val 转换成 map[int]string
 // Deprecated: 请用 MapIndexIntString
+// MapIndexIntKV 按照key，val 转换成 map[int]string
 func (rm RowsMap) MapIndexIntKV(key, val string) map[int]string {
 	ss := make(map[int]string, len(rm))
 	for _, r := range rm {
@@ -495,8 +495,8 @@ func (rm RowsMap) MapIndexStringInt(key, val string) map[string]int {
 	return ss
 }
 
-// MapIndexIntKVInt 按照key，val 转换成 map[int]int
 // Deprecated: 请用 MapIndexIntInt
+// MapIndexIntKVInt 按照key，val 转换成 map[int]int
 func (rm RowsMap) MapIndexIntKVInt(key, val string) map[int]int {
 	ss := make(map[int]int, len(rm))
 	for _, r := range rm {

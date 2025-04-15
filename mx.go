@@ -27,6 +27,7 @@ var (
 	ErrInsertData  = errors.New("插入数据库异常")
 	ErrNoUpdateKey = errors.New("没有更新主键")
 	ErrNoDeleteKey = errors.New("删除需要条件")
+	ErrMayBeAttack = errors.New("可能受到攻击")
 
 	ErrMustBeAddr     = errors.New("必须为值引用")
 	ErrMustBeSlice    = errors.New("必须为Slice")
