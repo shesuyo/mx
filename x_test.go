@@ -141,8 +141,8 @@ type DefaultTime struct {
 
 func BenchmarkReflectFunc(b *testing.B) {
 	u := reflect.ValueOf(&User{})
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if af := u.MethodByName(AfterFind); af.IsValid() {
 			af.Call(nil)
 		}
@@ -151,8 +151,8 @@ func BenchmarkReflectFunc(b *testing.B) {
 
 func BenchmarkAssertionFunc(b *testing.B) {
 	var u any = &User{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if af, ok := u.(AfterFinder); ok {
 			af.AfterFind()
 		}
@@ -172,11 +172,11 @@ func BenchmarkAssertionFunc(b *testing.B) {
 
 func BenchmarkMapGet(b *testing.B) {
 	m := make(map[string]Columns)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		m["field"+strconv.Itoa(i)] = Columns{}
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = m["field19"]
 	}
 }
@@ -188,12 +188,12 @@ type KeyWithColumns struct {
 
 func BenchmarkSliceGet0(b *testing.B) {
 	m := []KeyWithColumns{}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 20; j++ {
+
+	for b.Loop() {
+		for j := range 20 {
 			if m[j].key == "field0" {
 				break
 			}

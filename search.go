@@ -434,16 +434,6 @@ func (s *Search) Explain(debug bool) Explain {
 	return e
 }
 
-// func (s *Search) String() string {
-// 	return s.table.Query(s.Parse()).String()
-// }
-
-// SQLRows SQLRows
-// func (s *Search) SQLRows() *SQLRows {
-// 	query, args := s.Parse()
-// 	return s.table.Query(query, args...)
-// }
-
 // RowsMap RowsMap
 func (s *Search) RowsMap() RowsMap {
 	query, args := s.Parse()
@@ -460,6 +450,12 @@ func (s *Search) RowMapInterface() RowMapInterface {
 func (s *Search) RowsMapInterface() RowsMapInterface {
 	query, args := s.Parse()
 	return s.table.Query(query, args...).RowsMapInterface()
+}
+
+// RowsMapNull NULL值会用nil替代，而不是空字符串。
+func (s *Search) RowsMapNull() RowsMapInterface {
+	query, args := s.Parse()
+	return s.table.Query(query, args...).RowsMapNull()
 }
 
 // DoubleSlice DoubleSlice

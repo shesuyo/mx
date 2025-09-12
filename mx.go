@@ -124,6 +124,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		return nil, err
 	}
 	mx := &DataBase{
+		Driver:         "mysql",
 		debug:          false,
 		tableColumns:   make(map[string]Columns),
 		dataSourceName: dataSourceName,
@@ -214,8 +215,8 @@ func (db *DataBase) getColumns(tableName string) Columns {
 
 // Table 返回一个Table
 func (db *DataBase) Table(tableName string) *Table {
-	if !db.HaveTable(tableName) {
-		// fmt.Println("FBI WARNING:表" + tableName + "不存在！")
+	if !db.HaveTable(tableName) && db.Driver == "mysql" {
+		log.Println("MX WARNING:表" + tableName + "缓存不存在，最好重启应用！")
 	}
 	table := new(Table)
 	table.DataBase = db
@@ -506,7 +507,7 @@ func (db *DataBase) Find(obj any, args ...any) error {
 		rawSqlflag = false
 	)
 
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return ErrMustBeAddr
 	}
 

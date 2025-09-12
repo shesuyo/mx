@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -109,29 +110,11 @@ func (r *SQLRows) RowMapInterface() RowMapInterface {
 }
 
 // RowsMapInterface 返回[]map[string]interface{}，每个数组对应一列。
-/*
-	如果是无符号的tinyint能存0-255
-	这里有浪费tinyint->int8[-128,127] unsigned tinyint uint8[0,255]，这里直接用int16[-32768,32767]
-*/
 func (r *SQLRows) RowsMapInterface() RowsMapInterface {
-	// _st := time.Now()
-	// defer func() {
-	// 	fmt.Println(time.Now().Sub(_st))
-	// }()
 	rs := RowsMapInterface{}
 	if r.err != nil {
 		return rs
 	}
-	// ct, err := r.rows.ColumnTypes()
-	// fmt.Println(err)
-	// for _, v := range ct {
-	// 	fmt.Println(wtf.JSONStringify(v))
-	// }
-
-	// fmt.Println(wtf.JSONStringify(r.rows))
-	// fmt.Println(r.rows)
-
-	// https://segmentfault.com/a/1190000003036452
 
 	cols, err := r.rows.Columns()
 	if err != nil {
@@ -155,34 +138,6 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 	}
 	return rs
 }
-
-// MarshalJSON 实现MarshalJSON
-// func (rm RowMap) MarshalJSON() ([]byte, error) {
-// 	sb := bytes.NewBuffer(make([]byte, 0, 1024))
-// 	sb.WriteByte('{')
-// 	l := len(rm)
-// 	n := 0
-// 	for k, v := range rm {
-// 		sb.WriteByte('"')
-// 		sb.Write(stringByte(k))
-// 		sb.Write([]byte{'"', ':', '"'})
-// 		if strings.Contains(v, "\\") {
-// 			v = strings.Replace(v, "\\", "\\\\", -1)
-// 		}
-// 		if strings.Contains(v, `"`) {
-// 			sb.Write([]byte(strings.Replace(v, `"`, `\"`, -1)))
-// 		} else {
-// 			sb.Write([]byte(v))
-// 		}
-// 		sb.WriteByte('"')
-// 		n++
-// 		if n < l {
-// 			sb.WriteByte(',')
-// 		}
-// 	}
-// 	sb.WriteByte('}')
-// 	return sb.Bytes(), nil
-// }
 
 // Bool return single bool
 func (rm RowMap) Bool(field ...string) bool {
@@ -554,12 +509,7 @@ type Vals []string
 
 // Contains vals weather contains s
 func (vs Vals) Contains(s string) bool {
-	for _, v := range vs {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(vs, s)
 }
 
 // MapIndexsKV 按k,v划分成map[string]Vals
@@ -1221,36 +1171,6 @@ func (p rowsMapInterfaceSort) Less(i, j int) bool {
 }
 func (p rowsMapInterfaceSort) Swap(i, j int) { p.rs[i], p.rs[j] = p.rs[j], p.rs[i] }
 
-// ToStruct to struct
-// func (r *SQLRows) ToStruct(v interface{}) error {
-// 	rvp := reflect.ValueOf(v)
-// 	rv := reflect.Indirect(rvp)
-// 	if !rv.CanAddr() {
-// 		return errors.New("Can't addr.")
-// 	}
-// 	rt := rv.Type()
-// 	switch rt.Kind() {
-// 	case reflect.Struct:
-// 		cols, data := r.TripleByte()
-// 		if len(data) > 0 {
-// 			nss, err := setStruct(rv, rt, cols, data[0])
-// 			if err != nil {
-// 				return err
-// 			}
-// 			for _, sn := range nss {
-// 				_ = sn
-// 			}
-// 			if af, ok := v.(AfterFinder); ok {
-// 				return af.AfterFind()
-// 			}
-// 		}
-// 	case reflect.Slice:
-// 	default:
-// 		return errors.New("Unsupport Type " + rt.Kind().String())
-// 	}
-// 	return nil
-// }
-
 // RowsMap []map[string]string 所有类型都将返回字符串类型
 func (r *SQLRows) RowsMap() RowsMap {
 	if r.driver == "dm" {
@@ -1264,10 +1184,6 @@ func (r *SQLRows) RowsMap() RowsMap {
 		return rs
 	}
 	cols, _ := r.rows.Columns()
-	// ts, _ := r.rows.ColumnTypes()
-	// for _, t := range ts {
-	// 	fmt.Printf("%#v\n", *t)
-	// }
 
 	for r.rows.Next() {
 		//type RawBytes []byte
@@ -1279,7 +1195,37 @@ func (r *SQLRows) RowsMap() RowsMap {
 		r.rows.Scan(containers...)
 		for i := 0; i < len(cols); i++ {
 			rowMap[cols[i]] = string(*containers[i].(*[]byte))
-			//rowMap[cols[i]] = *(*string)(unsafe.Pointer(containers[i].(*[]byte)))
+		}
+		rs = append(rs, rowMap)
+	}
+	return rs
+}
+
+// RowsMapNull 所有类型都将返回字符串类型，如果是NULL值则为nil
+func (r *SQLRows) RowsMapNull() RowsMapInterface {
+	rs := make(RowsMapInterface, 0)
+	if r.err != nil {
+		return rs
+	}
+	if r.rows == nil {
+		return rs
+	}
+	cols, _ := r.rows.Columns()
+
+	for r.rows.Next() {
+		rowMap := make(map[string]any)
+		containers := make([]any, 0, len(cols))
+		for i := 0; i < cap(containers); i++ {
+			containers = append(containers, &sql.NullString{})
+		}
+		r.rows.Scan(containers...)
+		for i := range cols {
+			if containers[i].(*sql.NullString).Valid {
+				rowMap[cols[i]] = containers[i].(*sql.NullString).String
+			} else {
+				rowMap[cols[i]] = nil
+			}
+
 		}
 		rs = append(rs, rowMap)
 	}

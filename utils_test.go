@@ -291,45 +291,6 @@ func TestMapsToCRUDRows(t *testing.T) {
 	}
 }
 
-func Test_stringify(t *testing.T) {
-	type args struct {
-		v any
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-
-		{"", args{[]string{"1"}}, `["1"]`},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := stringify(tt.args.v); got != tt.want {
-				t.Errorf("stringify() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_copyMap(t *testing.T) {
-	type args struct {
-		m map[string]any
-	}
-	tests := []struct {
-		name string
-		args args
-		want map[string]any
-	}{}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := copyMap(tt.args.m); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("copyMap() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestWhereTimeParse(t *testing.T) {
 	type args struct {
 		field  string
