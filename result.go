@@ -1159,9 +1159,10 @@ type rowsMapInterfaceSort struct {
 func (p rowsMapInterfaceSort) Len() int { return len(p.rs) }
 func (p rowsMapInterfaceSort) Less(i, j int) bool {
 	var less bool
-	if p.kind == reflect.Int {
+	switch p.kind {
+	case reflect.Int:
 		less = p.rs[i].Int(p.field) < p.rs[j].Int(p.field)
-	} else if p.kind == reflect.String {
+	case reflect.String:
 		less = p.rs[i].String(p.field) < p.rs[j].String(p.field)
 	}
 	if p.desc {
@@ -1186,7 +1187,6 @@ func (r *SQLRows) RowsMap() RowsMap {
 	cols, _ := r.rows.Columns()
 
 	for r.rows.Next() {
-		//type RawBytes []byte
 		rowMap := make(map[string]string)
 		containers := make([]any, 0, len(cols))
 		for i := 0; i < cap(containers); i++ {
@@ -1320,9 +1320,7 @@ func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
 			return map[string]int{}, datas
 		}
 		result := make([][]byte, len(cols))
-		for i, raw := range rawResult {
-			result[i] = raw
-		}
+		copy(result, rawResult)
 		datas = append(datas, result)
 	}
 	m := make(map[string]int, len(cols))

@@ -60,6 +60,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 	} else {
 		conf = DefaultConfig
 	}
+	conf.parse()
 
 	if strings.HasPrefix(dataSourceName, "postgres://") {
 		db, err := sql.Open("postgres", dataSourceName)
