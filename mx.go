@@ -347,7 +347,7 @@ func (db *DataBase) DB() *sql.DB {
 func (db *DataBase) Create(obj any) (int, error) {
 
 	v := reflect.ValueOf(obj)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return 0, ErrMustBeAddr
 	}
 	tableName := getStructDBName(v)
@@ -380,7 +380,7 @@ func (db *DataBase) Create(obj any) (int, error) {
 func (db *DataBase) Creates(objs any) ([]int, error) {
 	ids := []int{}
 	v := reflect.ValueOf(objs)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return ids, ErrMustBeAddr
 	}
 	if v.Elem().Kind() != reflect.Slice {
@@ -411,7 +411,7 @@ func (db *DataBase) Creates(objs any) ([]int, error) {
 // Delete Delete
 func (db *DataBase) Delete(obj any) (int, error) {
 	v := reflect.ValueOf(obj)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return 0, ErrMustBeAddr
 	}
 	beforeFunc := v.MethodByName(BeforeDelete)
@@ -436,7 +436,7 @@ func (db *DataBase) Delete(obj any) (int, error) {
 func (db *DataBase) Deletes(objs any) (int, error) {
 	var affCount int
 	v := reflect.ValueOf(objs)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return 0, ErrMustBeAddr
 	}
 	if v.Elem().Kind() != reflect.Slice {
@@ -457,7 +457,7 @@ func (db *DataBase) Deletes(objs any) (int, error) {
 func (db *DataBase) Update(obj any) error {
 	//根据ID进行Update
 	v := reflect.ValueOf(obj)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return ErrMustBeAddr
 	}
 	callFunc(v, BeforeUpdate)
@@ -476,7 +476,7 @@ func (db *DataBase) Update(obj any) error {
 // Updates Updates
 func (db *DataBase) Updates(objs any) (int, error) {
 	v := reflect.ValueOf(objs)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return 0, ErrMustBeAddr
 	}
 	if v.Elem().Kind() != reflect.Slice {
