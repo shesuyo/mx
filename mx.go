@@ -125,7 +125,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		return nil, err
 	}
 	mx := &DataBase{
-		Driver:         "mysql",
+		Driver:         "", //默认空就是mysql
 		debug:          false,
 		tableColumns:   make(map[string]Columns),
 		dataSourceName: dataSourceName,
@@ -216,8 +216,11 @@ func (db *DataBase) getColumns(tableName string) Columns {
 
 // Table 返回一个Table
 func (db *DataBase) Table(tableName string) *Table {
-	if !db.HaveTable(tableName) && db.Driver == "mysql" {
-		log.Println("MX WARNING:表" + tableName + "缓存不存在，最好重启应用！")
+	if !db.HaveTable(tableName) && db.Driver == "" {
+		count := db.Query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?", db.Schema, tableName).Int()
+		if count > 0 {
+			log.Printf("MX WARNING:%s表%s缓存不存在。", db.Schema, tableName)
+		}
 	}
 	table := new(Table)
 	table.DataBase = db

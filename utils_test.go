@@ -61,6 +61,30 @@ func TestNewMapStringString(t *testing.T) {
 	}
 }
 
+func toDBNameV1(name string) string {
+	if name == "" {
+		return ""
+	}
+	dbNameBytes := []byte{}
+	preCapital := false
+	for i := 0; i < len(name); i++ {
+		if name[i] >= 'A' && name[i] <= 'Z' {
+			if !preCapital && i > 0 {
+				dbNameBytes = append(dbNameBytes, '_')
+			}
+			dbNameBytes = append(dbNameBytes, name[i]+32)
+			preCapital = true
+		} else {
+			dbNameBytes = append(dbNameBytes, name[i])
+			preCapital = false
+		}
+	}
+	dbName := string(dbNameBytes)
+	dbNameMap.Set(name, dbName)
+	dbNameMap.Set(dbName, name)
+	return dbName
+}
+
 func TestToDBName(t *testing.T) {
 	type args struct {
 		name string
@@ -70,16 +94,30 @@ func TestToDBName(t *testing.T) {
 		args args
 		want string
 	}{
-
 		{"", args{"UserWeapon"}, "user_weapon"},
+		{"", args{"SN"}, "sn"},
+		{"", args{"APIVersion"}, "apiversion"}, // 这里旧的会转换成 api_version，要看看数据库有没有这类字段。
+		{"", args{"Version9"}, "version9"},
+		{"", args{"User"}, "user"},
+		{"", args{"UID"}, "uid"},
+		{"", args{"UserUID"}, "user_uid"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ToDBName(tt.args.name); got != tt.want {
+			if got := toDBNameV1(tt.args.name); got != tt.want {
 				t.Errorf("ToDBName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func BenchmarkToDBName(b *testing.B) {
+	b.Run("ToDBNameV1", func(b *testing.B) {
+		toDBNameV1("UserWeapon")
+	})
+	b.Run("ToDBName", func(b *testing.B) {
+		toDBName("UserWeapon")
+	})
 }
 
 func TestToStructName(t *testing.T) {

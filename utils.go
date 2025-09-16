@@ -14,9 +14,7 @@ import (
 )
 
 var (
-	fullTitles         = []string{"API", "CPU", "CSS", "CID", "DNS", "EOF", "EPC", "GUID", "HTML", "HTTP", "HTTPS", "ID", "UID", "IP", "JSON", "QPS", "RAM", "RHS", "RPC", "SLA", "SN", "SMTP", "SSH", "TLS", "TTL", "UI", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XSRF", "XSS", "PY"}
-	fullTitlesReplacer *strings.Replacer
-	structNameMap      map[string]string
+	structNameMap map[string]string
 	//m和rm公用同一个
 	dbNameMap = NewMapStringString()
 
@@ -49,25 +47,6 @@ func NewMapStringString() *SafeMapStringString {
 	safe := new(SafeMapStringString)
 	safe.m = make(map[string]string)
 	return safe
-}
-
-func init() {
-	{
-		var oldnew []string
-		for _, title := range fullTitles {
-			oldnew = append(oldnew, title, "_"+strings.ToLower(title))
-		}
-		for i := 'A'; i <= 'Z'; i++ {
-			oldnew = append(oldnew, string(i), "_"+string(i+32))
-		}
-		fullTitlesReplacer = strings.NewReplacer(oldnew...)
-	}
-	{
-		structNameMap = make(map[string]string, len(fullTitles))
-		for _, title := range fullTitles {
-			structNameMap[strings.ToLower(title)] = title
-		}
-	}
 }
 
 // ToDBName 将结构体的字段名字转换成对应数据库字段名
@@ -109,6 +88,28 @@ func toStructName(name string) string {
 	return structName
 }
 
+var (
+	fullTitles         = []string{"API", "CPU", "CSS", "CID", "DNS", "EOF", "EPC", "GUID", "HTML", "HTTP", "HTTPS", "ID", "UID", "IP", "JSON", "QPS", "RAM", "RHS", "RPC", "SLA", "SN", "SMTP", "SSH", "TLS", "TTL", "UI", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XSRF", "XSS", "PY"}
+	fullTitlesReplacer *strings.Replacer
+)
+
+func init() {
+	var oldnew []string
+	for _, title := range fullTitles {
+		oldnew = append(oldnew, title, "_"+strings.ToLower(title))
+	}
+	for i := 'A'; i <= 'Z'; i++ {
+		oldnew = append(oldnew, string(i), "_"+string(i+32))
+	}
+	fullTitlesReplacer = strings.NewReplacer(oldnew...)
+
+	structNameMap = make(map[string]string, len(fullTitles))
+	for _, title := range fullTitles {
+		structNameMap[strings.ToLower(title)] = title
+	}
+}
+
+// 旧版本，只能针对固定字段进行转换
 func toDBName(name string) string {
 	dbName := fullTitlesReplacer.Replace(name)
 	if len(dbName) >= 1 {
@@ -144,10 +145,10 @@ func ksvs(m map[string]any, keyTail ...string) ([]string, []any) {
 	return ks, vs
 }
 
-// 用于返回对应个数参数,多用于In。
+// 返回对应个数参数占位符
 func argslice(l int) string {
 	s := []string{}
-	for i := 0; i < l; i++ {
+	for range l {
 		s = append(s, "?")
 	}
 	return strings.Join(s, ",")
@@ -155,12 +156,8 @@ func argslice(l int) string {
 
 var (
 	structTagMu  sync.RWMutex
-	structTagMap map[string][]string
+	structTagMap map[string][]string = make(map[string][]string, 19977)
 )
-
-func init() {
-	structTagMap = make(map[string][]string, 19977)
-}
 
 func getTags(v reflect.Value, t reflect.Type, table *Table) []string {
 	structName := t.String()
@@ -236,7 +233,7 @@ func placeholder(n int) string {
 		return placeholders[n]
 	}
 	holder := []string{}
-	for i := 0; i < n; i++ {
+	for range n {
 		holder = append(holder, "?")
 	}
 	return strings.Join(holder, ",")
