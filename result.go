@@ -1225,7 +1225,6 @@ func (r *SQLRows) RowsMapNull() RowsMapInterface {
 			} else {
 				rowMap[cols[i]] = nil
 			}
-
 		}
 		rs = append(rs, rowMap)
 	}

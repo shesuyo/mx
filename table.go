@@ -871,6 +871,9 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte,
 
 // Struct no auto query
 func (t *Table) Struct(v any) error {
+	if t.Search.noNeedQuery {
+		return nil
+	}
 	s := t.Search.Clone()
 	query, args := s.Parse()
 	cols, data := t.Query(query, args...).TripleByte()
@@ -895,6 +898,9 @@ func (t *Table) Struct(v any) error {
 
 // ToStruct auto query
 func (t *Table) ToStruct(v any) error {
+	if t.Search.noNeedQuery {
+		return nil
+	}
 	s := t.Search.Clone()
 	query, args := s.Parse()
 	cols, data := t.Query(query, args...).TripleByte()

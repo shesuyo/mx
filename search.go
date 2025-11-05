@@ -76,10 +76,11 @@ type Search struct {
 	limit             any
 	offset            any
 
-	query string
-	args  []any
-	raw   bool
-	debug bool
+	query       string
+	args        []any
+	raw         bool
+	debug       bool
+	noNeedQuery bool
 }
 
 // Clone 克隆一个当前结构体
@@ -134,9 +135,10 @@ func (s *Search) In(field string, args ...any) *Search {
 
 // MustIn in语法
 func (s *Search) MustIn(field string, args ...any) *Search {
-	// 强制 in nothing 就查 tableName.id<0
+	// 强制 in nothing 就查 tableName.id<0，有些表没ID，减少查询，干脆不查询。
 	if len(args) == 0 {
 		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
+		s.noNeedQuery = true
 		return s
 	}
 	if len(args) == 1 {
@@ -403,6 +405,9 @@ func (s *Search) warpFieldSingle(field string) (warpStr string, tablename string
 
 // RowMap RowMap
 func (s *Search) RowMap() RowMap {
+	if s.noNeedQuery {
+		return RowMap{}
+	}
 	nb := (*s).Clone()
 	query, args := nb.Parse()
 	return s.table.Query(query, args...).RowMap()
@@ -436,30 +441,45 @@ func (s *Search) Explain(debug bool) Explain {
 
 // RowsMap RowsMap
 func (s *Search) RowsMap() RowsMap {
+	if s.noNeedQuery {
+		return RowsMap{}
+	}
 	query, args := s.Parse()
 	return s.table.Query(query, args...).RowsMap()
 }
 
 // RowMapInterface RowMapInterface
 func (s *Search) RowMapInterface() RowMapInterface {
+	if s.noNeedQuery {
+		return RowMapInterface{}
+	}
 	query, args := s.Parse()
 	return s.table.Query(query, args...).RowMapInterface()
 }
 
 // RowsMapInterface RowsMapInterface
 func (s *Search) RowsMapInterface() RowsMapInterface {
+	if s.noNeedQuery {
+		return RowsMapInterface{}
+	}
 	query, args := s.Parse()
 	return s.table.Query(query, args...).RowsMapInterface()
 }
 
 // RowsMapNull NULL值会用nil替代，而不是空字符串。
 func (s *Search) RowsMapNull() RowsMapInterface {
+	if s.noNeedQuery {
+		return RowsMapInterface{}
+	}
 	query, args := s.Parse()
 	return s.table.Query(query, args...).RowsMapNull()
 }
 
 // DoubleSlice DoubleSlice
 func (s *Search) DoubleSlice() (map[string]int, [][]string) {
+	if s.noNeedQuery {
+		return map[string]int{}, [][]string{}
+	}
 	query, args := s.Parse()
 	return s.table.Query(query, args...).DoubleSlice()
 }
