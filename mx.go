@@ -116,6 +116,24 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		}
 		return mx, nil
 	}
+	if strings.HasPrefix(dataSourceName, "sqlserver://") {
+		db, err := sql.Open("sqlserver", strings.TrimPrefix(dataSourceName, "sqlserver://"))
+		if err != nil {
+			return nil, err
+		}
+		if err = checkDBInit(db, conf); err != nil {
+			return nil, err
+		}
+		mx := &DataBase{
+			Driver:         "sqlserver",
+			debug:          false,
+			tableColumns:   make(map[string]Columns),
+			dataSourceName: dataSourceName,
+			db:             db,
+			mm:             new(sync.Mutex),
+		}
+		return mx, nil
+	}
 
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
