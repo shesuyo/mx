@@ -121,18 +121,18 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 		return rs
 	}
 
-	for r.rows.Next() {
-		rowMap := make(map[string]any)
+	// 复用扫描容器，避免每一行都重新分配；扫描后马上转成 string，所以可以安全复用。
 
-		containers := make([]any, 0, len(cols))
-		for i := 0; i < cap(containers); i++ {
-			containers = append(containers, &sql.RawBytes{})
-		}
-		r.rows.Scan(containers...)
-		for i := 0; i < len(cols); i++ {
-			for i := 0; i < cap(containers); i++ {
-				rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
-			}
+	containers := make([]any, len(cols))
+	for i := range containers {
+		containers[i] = &sql.RawBytes{}
+	}
+
+	for r.rows.Next() {
+		rowMap := make(map[string]any, len(cols))
+		_ = r.rows.Scan(containers...)
+		for i := range cols {
+			rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
 		}
 		rs = append(rs, rowMap)
 	}
@@ -1185,16 +1185,18 @@ func (r *SQLRows) RowsMap() RowsMap {
 		return rs
 	}
 	cols, _ := r.rows.Columns()
+	// 扫描容器只分配一次，后面每行复用，减少小对象申请。
+
+	containers := make([]any, len(cols))
+	for i := range containers {
+		containers[i] = &sql.RawBytes{}
+	}
 
 	for r.rows.Next() {
-		rowMap := make(map[string]string)
-		containers := make([]any, 0, len(cols))
-		for i := 0; i < cap(containers); i++ {
-			containers = append(containers, &[]byte{})
-		}
-		r.rows.Scan(containers...)
-		for i := 0; i < len(cols); i++ {
-			rowMap[cols[i]] = string(*containers[i].(*[]byte))
+		rowMap := make(RowMap, len(cols))
+		_ = r.rows.Scan(containers...)
+		for i := range cols {
+			rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
 		}
 		rs = append(rs, rowMap)
 	}
@@ -1211,17 +1213,20 @@ func (r *SQLRows) RowsMapNull() RowsMapInterface {
 		return rs
 	}
 	cols, _ := r.rows.Columns()
+	// NullString 也只分配一次，行与行之间仅覆盖值即可。
+
+	containers := make([]any, len(cols))
+	for i := range containers {
+		containers[i] = &sql.NullString{}
+	}
 
 	for r.rows.Next() {
-		rowMap := make(map[string]any)
-		containers := make([]any, 0, len(cols))
-		for i := 0; i < cap(containers); i++ {
-			containers = append(containers, &sql.NullString{})
-		}
-		r.rows.Scan(containers...)
+		rowMap := make(map[string]any, len(cols))
+		_ = r.rows.Scan(containers...)
 		for i := range cols {
-			if containers[i].(*sql.NullString).Valid {
-				rowMap[cols[i]] = containers[i].(*sql.NullString).String
+			ns := containers[i].(*sql.NullString)
+			if ns.Valid {
+				rowMap[cols[i]] = ns.String
 			} else {
 				rowMap[cols[i]] = nil
 			}

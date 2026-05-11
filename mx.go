@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -67,7 +68,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = checkDBInit(db, conf); err != nil {
+		if err = checkDBInitContext(db, conf); err != nil {
 			return nil, err
 		}
 		mx := &DataBase{
@@ -85,7 +86,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = checkDBInit(db, conf); err != nil {
+		if err = checkDBInitContext(db, conf); err != nil {
 			return nil, err
 		}
 		mx := &DataBase{
@@ -103,7 +104,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = checkDBInit(db, conf); err != nil {
+		if err = checkDBInitContext(db, conf); err != nil {
 			return nil, err
 		}
 		mx := &DataBase{
@@ -139,7 +140,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = checkDBInit(db, conf); err != nil {
+	if err = checkDBInitContext(db, conf); err != nil {
 		return nil, err
 	}
 	mx := &DataBase{
@@ -189,6 +190,22 @@ func checkDBInit(db *sql.DB, conf Config) error {
 		}
 	case <-time.After(conf.Timeout):
 		return errors.New("连接超时")
+	}
+	db.SetMaxIdleConns(conf.MaxIdleConns)
+	db.SetMaxOpenConns(conf.MaxOpenConns)
+	return nil
+}
+
+func checkDBInitContext(db *sql.DB, conf Config) error {
+	// 直接用带超时的 PingContext，避免额外 goroutine 在超时后阻塞泄漏。
+	ctx, cancel := context.WithTimeout(context.Background(), conf.Timeout)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return errors.New("杩炴帴瓒呮椂")
+		}
+		return err
 	}
 	db.SetMaxIdleConns(conf.MaxIdleConns)
 	db.SetMaxOpenConns(conf.MaxOpenConns)

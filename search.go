@@ -147,6 +147,7 @@ func (s *Search) MustIn(field string, args ...any) *Search {
 	// 解析之后还可能为0
 	if len(args) == 0 {
 		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
+		s.noNeedQuery = true
 		return s
 	}
 	s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("%s IN (%s)", field, placeholder(len(args))), Args: args})
@@ -250,29 +251,33 @@ func (s *Search) Parse() (string, []any) {
 		limit        string
 		offset       string
 	)
+	fieldList := append([]string(nil), s.fields...)
+	whereConditions := append([]WhereCon(nil), s.whereConditions...)
 	if s.table.tableColumns[s.tableName].HaveColumn(IsDeleted) {
-		s.Where(s.table.Name()+".is_deleted = ?", 0)
+		// 这里用局部副本拼接条件，避免 Parse 被多次调用时反复污染原始 Search 状态。
+
+		whereConditions = append(whereConditions, WhereCon{Query: s.table.Name() + ".is_deleted = ?", Args: []any{0}})
 	}
 	s.query = ""
 	s.args = []any{}
-	if len(s.fields) == 0 {
+	if len(fieldList) == 0 {
 		fields = "*"
 	} else {
-		for i := 0; i < len(s.fields); i++ {
+		for i := 0; i < len(fieldList); i++ {
 			var tableName string
-			s.fields[i], tableName, _ = s.warpField(s.fields[i])
+			fieldList[i], tableName, _ = s.warpField(fieldList[i])
 			if tableName != s.tableName {
 				if !s.joinConditions.HaveTable(tableName) {
 					s.Joins(tableName)
 				}
 			}
 		}
-		fields = strings.Join(s.fields, ",")
+		fields = strings.Join(fieldList, ",")
 	}
 	for _, joincon := range s.joinConditions {
 		joins += fmt.Sprintf(" LEFT JOIN %s ON %s", joincon.TableName, joincon.Condition)
 	}
-	for _, wherecon := range s.whereConditions {
+	for _, wherecon := range whereConditions {
 		paddingwhere = " WHERE "
 		wheres = append(wheres, wherecon.Query)
 		s.args = append(s.args, wherecon.Args...)
