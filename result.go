@@ -277,7 +277,7 @@ func (rm RowsMap) RowsMap() RowsMap {
 
 // Copy 复制一份
 func (rm RowsMap) Copy() RowsMap {
-	nrm := make(RowsMap, len(rm))
+	nrm := make(RowsMap, 0, len(rm))
 	for _, r := range rm {
 		nr := make(RowMap, len(r))
 		for k, v := range r {

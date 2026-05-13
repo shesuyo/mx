@@ -35,6 +35,9 @@ func (rowsMapStubConn) Begin() (driver.Tx, error) {
 }
 
 func (rowsMapStubConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if query == "SELECT single FROM stub" {
+		return &rowsMapSingleStubRows{}, nil
+	}
 	return &rowsMapStubRows{}, nil
 }
 
@@ -58,6 +61,25 @@ func (r *rowsMapStubRows) Next(dest []driver.Value) error {
 	}
 	copy(dest, rows[r.idx])
 	r.idx++
+	return nil
+}
+
+type rowsMapSingleStubRows struct {
+	done bool
+}
+
+func (rowsMapSingleStubRows) Columns() []string {
+	return []string{"single"}
+}
+
+func (rowsMapSingleStubRows) Close() error { return nil }
+
+func (r *rowsMapSingleStubRows) Next(dest []driver.Value) error {
+	if r.done {
+		return io.EOF
+	}
+	dest[0] = []byte("7")
+	r.done = true
 	return nil
 }
 
