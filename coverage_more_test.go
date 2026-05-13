@@ -21,6 +21,10 @@ const (
 func init() {
 	sql.Register(dmRowsDriverName, dmRowsDriver{})
 	sql.Register(slowPingDriverName, slowPingDriver{})
+	sql.Register("postgres", prefixPingDriver{})
+	sql.Register("dm", prefixPingDriver{})
+	sql.Register("go_ibm_db", prefixPingDriver{})
+	sql.Register("sqlserver", prefixPingDriver{})
 }
 
 type dmRowsDriver struct{}
@@ -101,6 +105,33 @@ func (slowPingConn) Begin() (driver.Tx, error) {
 func (slowPingConn) Ping(ctx context.Context) error {
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+type prefixPingDriver struct{}
+
+func (prefixPingDriver) Open(name string) (driver.Conn, error) {
+	return prefixPingConn{name: name}, nil
+}
+
+type prefixPingConn struct {
+	name string
+}
+
+func (prefixPingConn) Prepare(query string) (driver.Stmt, error) {
+	return nil, errors.New("not supported")
+}
+
+func (prefixPingConn) Close() error { return nil }
+
+func (prefixPingConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("not supported")
+}
+
+func (c prefixPingConn) Ping(ctx context.Context) error {
+	if c.name == "postgres://unit" || c.name == "dm://unit" || c.name == "unit" {
+		return errors.New("prefix ping failed")
+	}
+	return nil
 }
 
 type CoverageTarget struct {

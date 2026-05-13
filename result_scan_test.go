@@ -35,6 +35,9 @@ func (rowsMapStubConn) Begin() (driver.Tx, error) {
 }
 
 func (rowsMapStubConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if query == "SELECT empty FROM stub" {
+		return &rowsMapEmptyStubRows{}, nil
+	}
 	if query == "SELECT single FROM stub" {
 		return &rowsMapSingleStubRows{}, nil
 	}
@@ -81,6 +84,18 @@ func (r *rowsMapSingleStubRows) Next(dest []driver.Value) error {
 	dest[0] = []byte("7")
 	r.done = true
 	return nil
+}
+
+type rowsMapEmptyStubRows struct{}
+
+func (rowsMapEmptyStubRows) Columns() []string {
+	return []string{"empty"}
+}
+
+func (rowsMapEmptyStubRows) Close() error { return nil }
+
+func (rowsMapEmptyStubRows) Next(dest []driver.Value) error {
+	return io.EOF
 }
 
 func TestSQLRowsScanHelpers(t *testing.T) {

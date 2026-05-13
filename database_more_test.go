@@ -19,6 +19,7 @@ var (
 	crudQueries    []string
 	crudExecs      []string
 	crudCountValue = "0"
+	crudQueryErr   error
 	crudExecErr    error
 )
 
@@ -50,7 +51,12 @@ func (crudConn) QueryContext(ctx context.Context, query string, args []driver.Na
 	crudMu.Lock()
 	crudQueries = append(crudQueries, query)
 	count := crudCountValue
+	queryErr := crudQueryErr
 	crudMu.Unlock()
+
+	if queryErr != nil {
+		return nil, queryErr
+	}
 
 	lower := strings.ToLower(query)
 	switch {
@@ -74,8 +80,20 @@ func (crudConn) QueryContext(ctx context.Context, query string, args []driver.Na
 		return crudRowsFor([]string{"AUTO_INCREMENT"}, []driver.Value{[]byte("12")}), nil
 	case strings.Contains(lower, "ifnull(max(id)"):
 		return crudRowsFor([]string{"id"}, []driver.Value{[]byte("99")}), nil
+	case strings.Contains(lower, "select `user`.`age`"):
+		return crudRowsFromValues(
+			[]string{"age"},
+			[][]driver.Value{{[]byte("30")}, {[]byte("40")}},
+		), nil
+	case strings.Contains(lower, "select `user`.`amount`"):
+		return crudRowsFromValues(
+			[]string{"amount"},
+			[][]driver.Value{{[]byte("2.5")}, {[]byte("3.5")}},
+		), nil
 	case strings.Contains(lower, "count(*)"):
 		return crudRowsFor([]string{"total"}, []driver.Value{[]byte(count)}), nil
+	case strings.Contains(lower, "from empty"), strings.Contains(lower, "from `empty`"):
+		return crudRowsFromValues([]string{"id", "name"}, nil), nil
 	default:
 		return crudUserRows(), nil
 	}
@@ -132,6 +150,7 @@ func resetCRUDStubDB(t *testing.T) *DataBase {
 	crudQueries = nil
 	crudExecs = nil
 	crudCountValue = "0"
+	crudQueryErr = nil
 	crudExecErr = nil
 	crudMu.Unlock()
 
@@ -142,6 +161,7 @@ func resetCRUDStubDB(t *testing.T) *DataBase {
 	t.Cleanup(func() {
 		raw.Close()
 		crudMu.Lock()
+		crudQueryErr = nil
 		crudExecErr = nil
 		crudCountValue = "0"
 		crudMu.Unlock()
