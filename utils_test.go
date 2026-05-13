@@ -1,6 +1,7 @@
 package mx
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
@@ -543,33 +544,101 @@ func TestTime_Parse(t *testing.T) {
 }
 
 func Test_setReflectValue(t *testing.T) {
+	type stringAlias string
+	type int64Alias int64
+	type bytesAlias []byte
+
 	type args struct {
 		v  reflect.Value
 		bs []byte
 	}
 	var i int
+	var i8 int8
+	var i16 int16
+	var i32 int32
+	var i64 int64
 	var s string
+	var sa stringAlias
+	var ia int64Alias
 	var ui uint
+	var ui8 uint8
+	var ui16 uint16
+	var ui32 uint32
+	var ui64 uint64
+	var b bool
 	var is []int
+	var bs []byte
+	var bas bytesAlias
 	var f64 float64
 	var f32 float32
+	var ip *int
+	var sp *string
+	var bp *bool
+	var tm time.Time
+	var tmp *time.Time
+	var nt sql.NullTime
 	tests := []struct {
 		name string
 		args args
 		want any
 	}{
-		{"", args{reflect.ValueOf(&i).Elem(), []byte("1")}, int(1)},
-		{"", args{reflect.ValueOf(&s).Elem(), []byte("1")}, "1"},
-		{"", args{reflect.ValueOf(&ui).Elem(), []byte("1")}, uint(1)},
-		{"", args{reflect.ValueOf(&is).Elem(), []byte("[1,2]")}, []int{1, 2}},
-		{"", args{reflect.ValueOf(&f64).Elem(), []byte("1")}, float64(1)},
-		{"", args{reflect.ValueOf(&f32).Elem(), []byte("1")}, float32(1)},
+		{"int", args{reflect.ValueOf(&i).Elem(), []byte("1")}, int(1)},
+		{"int8", args{reflect.ValueOf(&i8).Elem(), []byte("1")}, int8(1)},
+		{"int16", args{reflect.ValueOf(&i16).Elem(), []byte("1")}, int16(1)},
+		{"int32", args{reflect.ValueOf(&i32).Elem(), []byte("1")}, int32(1)},
+		{"int64", args{reflect.ValueOf(&i64).Elem(), []byte("1")}, int64(1)},
+		{"string", args{reflect.ValueOf(&s).Elem(), []byte("1")}, "1"},
+		{"string alias", args{reflect.ValueOf(&sa).Elem(), []byte("ok")}, stringAlias("ok")},
+		{"int64 alias", args{reflect.ValueOf(&ia).Elem(), []byte("2")}, int64Alias(2)},
+		{"uint", args{reflect.ValueOf(&ui).Elem(), []byte("1")}, uint(1)},
+		{"uint8", args{reflect.ValueOf(&ui8).Elem(), []byte("1")}, uint8(1)},
+		{"uint16", args{reflect.ValueOf(&ui16).Elem(), []byte("1")}, uint16(1)},
+		{"uint32", args{reflect.ValueOf(&ui32).Elem(), []byte("1")}, uint32(1)},
+		{"uint64", args{reflect.ValueOf(&ui64).Elem(), []byte("1")}, uint64(1)},
+		{"bool", args{reflect.ValueOf(&b).Elem(), []byte("true")}, true},
+		{"slice", args{reflect.ValueOf(&is).Elem(), []byte("[1,2]")}, []int{1, 2}},
+		{"bytes", args{reflect.ValueOf(&bs).Elem(), []byte("abc")}, []byte("abc")},
+		{"bytes alias", args{reflect.ValueOf(&bas).Elem(), []byte("abc")}, bytesAlias("abc")},
+		{"float64", args{reflect.ValueOf(&f64).Elem(), []byte("1")}, float64(1)},
+		{"float32", args{reflect.ValueOf(&f32).Elem(), []byte("1")}, float32(1)},
+		{"int pointer", args{reflect.ValueOf(&ip).Elem(), []byte("1")}, int(1)},
+		{"string pointer", args{reflect.ValueOf(&sp).Elem(), []byte("ptr")}, "ptr"},
+		{"bool pointer", args{reflect.ValueOf(&bp).Elem(), []byte("1")}, true},
+		{"time", args{reflect.ValueOf(&tm).Elem(), []byte("2026-05-13 12:30:45")}, time.Date(2026, 5, 13, 12, 30, 45, 0, time.Local)},
+		{"time pointer", args{reflect.ValueOf(&tmp).Elem(), []byte("2026-05-13")}, time.Date(2026, 5, 13, 0, 0, 0, 0, time.Local)},
+		{"sql null time", args{reflect.ValueOf(&nt).Elem(), []byte("2026-05-13 12:30:45")}, sql.NullTime{Time: time.Date(2026, 5, 13, 12, 30, 45, 0, time.Local), Valid: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setReflectValue(tt.args.v, tt.args.bs)
-			if !reflect.DeepEqual(tt.args.v.Interface(), tt.want) {
-				t.Errorf("setReflectValue() = %v, want %v", tt.args.v.Interface(), tt.want)
+			if err := setReflectValue(tt.args.v, tt.args.bs); err != nil {
+				t.Fatalf("setReflectValue() error = %v", err)
+			}
+			got := tt.args.v.Interface()
+			if tt.args.v.Kind() == reflect.Pointer {
+				got = tt.args.v.Elem().Interface()
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("setReflectValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_setReflectValue_error(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		bs    []byte
+	}{
+		{"uint negative", new(uint), []byte("-1")},
+		{"bool invalid", new(bool), []byte("maybe")},
+		{"json invalid", new([]int), []byte("invalid")},
+		{"time invalid", new(time.Time), []byte("invalid")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := setReflectValue(reflect.ValueOf(tt.value).Elem(), tt.bs); err == nil {
+				t.Fatalf("setReflectValue() error = nil")
 			}
 		})
 	}

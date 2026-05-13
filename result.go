@@ -1245,11 +1245,15 @@ func (r *SQLRows) ToStruct(v any) error {
 	switch ms.rt.Kind() {
 	case reflect.Struct:
 		if len(data) > 0 {
-			setStruct(ms.rv, ms.rt, cols, data[0])
+			if err := setStruct(ms.rv, ms.rt, cols, data[0]); err != nil {
+				return err
+			}
 		}
 	case reflect.Slice:
 		if len(data) > 0 {
-			setSlice(ms.rv, ms.rt, cols, data)
+			if err := setSlice(ms.rv, ms.rt, cols, data); err != nil {
+				return err
+			}
 		}
 	default:
 		return errors.New("Unsupport Type " + ms.rt.Kind().String())

@@ -1,6 +1,8 @@
 package mx
 
 import (
+	"database/sql"
+	"encoding"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -266,6 +268,9 @@ const (
 
 var (
 	errPeriodParse = errors.New("period parse err")
+
+	reflectTimeType        = reflect.TypeOf(time.Time{})
+	reflectSQLNullTimeType = reflect.TypeOf(sql.NullTime{})
 )
 
 // timeParse time parse from string
@@ -478,29 +483,200 @@ func (t *Time) Parse() {
 	}
 }
 
-func setReflectValue(v reflect.Value, bs []byte) {
-	if v.Interface() != nil {
-		switch v.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			v.Set(reflect.ValueOf(Int(bs)))
-		case reflect.String:
-			v.Set(reflect.ValueOf(String(bs)))
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			v.SetUint(uint64(Int(bs)))
-		case reflect.Struct, reflect.Slice:
-			json.Unmarshal(bs, v.Addr().Interface())
-		case reflect.Map:
-			json.Unmarshal(bs, v.Addr().Interface())
-		case reflect.Float64:
-			f, _ := strconv.ParseFloat(String(bs), 64)
-			v.SetFloat(f)
-		case reflect.Float32:
-			f, _ := strconv.ParseFloat(String(bs), 32)
-			v.SetFloat(f)
-		default:
-			v.Set(reflect.ValueOf(String(bs)))
+func setReflectValue(v reflect.Value, bs []byte) error {
+	if !v.IsValid() || !v.CanSet() {
+		return nil
+	}
+	if bs == nil {
+		if handled, err := scanReflectValue(v, bs); handled {
+			return err
+		}
+		v.SetZero()
+		return nil
+	}
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+		return setReflectValue(v.Elem(), bs)
+	}
+	if handled, err := scanReflectValue(v, bs); handled {
+		return err
+	}
+	if v.Type() == reflectTimeType {
+		t, err := parseReflectTime(bs)
+		if err != nil {
+			return err
+		}
+		v.Set(reflect.ValueOf(t))
+		return nil
+	}
+	if v.CanAddr() && v.Addr().CanInterface() {
+		if unmarshaler, ok := v.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			return unmarshaler.UnmarshalText(bs)
 		}
 	}
+
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		s := strings.TrimSpace(String(bs))
+		if s == "" {
+			v.SetInt(0)
+			return nil
+		}
+		i, err := strconv.ParseInt(s, 10, v.Type().Bits())
+		if err != nil {
+			return err
+		}
+		v.SetInt(i)
+	case reflect.String:
+		v.SetString(String(bs))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		s := strings.TrimSpace(String(bs))
+		if s == "" {
+			v.SetUint(0)
+			return nil
+		}
+		u, err := strconv.ParseUint(s, 10, v.Type().Bits())
+		if err != nil {
+			return err
+		}
+		v.SetUint(u)
+	case reflect.Bool:
+		s := strings.TrimSpace(String(bs))
+		if s == "" {
+			v.SetBool(false)
+			return nil
+		}
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+		v.SetBool(b)
+	case reflect.Struct:
+		if err := unmarshalReflectJSON(v, bs); err != nil {
+			return err
+		}
+	case reflect.Slice:
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			return setReflectBytes(v, bs)
+		}
+		if err := unmarshalReflectJSON(v, bs); err != nil {
+			return err
+		}
+	case reflect.Map:
+		if err := unmarshalReflectJSON(v, bs); err != nil {
+			return err
+		}
+	case reflect.Float32, reflect.Float64:
+		s := strings.TrimSpace(String(bs))
+		if s == "" {
+			v.SetFloat(0)
+			return nil
+		}
+		f, err := strconv.ParseFloat(s, v.Type().Bits())
+		if err != nil {
+			return err
+		}
+		v.SetFloat(f)
+	case reflect.Interface:
+		rv := reflect.ValueOf(String(bs))
+		if rv.Type().AssignableTo(v.Type()) {
+			v.Set(rv)
+			return nil
+		}
+		return fmt.Errorf("value of type %s is not assignable to type %s", rv.Type(), v.Type())
+	default:
+		return fmt.Errorf("unsupported type %s", v.Type())
+	}
+	return nil
+}
+
+func scanReflectValue(v reflect.Value, bs []byte) (bool, error) {
+	if !v.CanAddr() || !v.Addr().CanInterface() {
+		return false, nil
+	}
+	scanner, ok := v.Addr().Interface().(sql.Scanner)
+	if !ok {
+		return false, nil
+	}
+	if bs == nil {
+		return true, scanner.Scan(nil)
+	}
+	if v.Type() == reflectSQLNullTimeType {
+		t, err := parseReflectTime(bs)
+		if err != nil {
+			return true, err
+		}
+		return true, scanner.Scan(t)
+	}
+	return true, scanner.Scan(bs)
+}
+
+func parseReflectTime(bs []byte) (time.Time, error) {
+	s := strings.TrimSpace(String(bs))
+	if s == "" || strings.HasPrefix(s, "0000-00-00") {
+		return time.Time{}, nil
+	}
+	if unquoted, err := strconv.Unquote(s); err == nil {
+		s = strings.TrimSpace(unquoted)
+		if s == "" || strings.HasPrefix(s, "0000-00-00") {
+			return time.Time{}, nil
+		}
+	}
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999",
+		timeFormat,
+		"2006-01-02 15:04",
+		"2006-01-02 15",
+		"2006-01-02",
+		"2006-01",
+		"2006",
+		"2006-01-02T15:04:05.999999999",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
+		"2006-01-02T15",
+	}
+	var lastErr error
+	for _, layout := range layouts {
+		var (
+			t   time.Time
+			err error
+		)
+		if strings.Contains(layout, "Z07") {
+			t, err = time.Parse(layout, s)
+		} else {
+			t, err = time.ParseInLocation(layout, s, time.Local)
+		}
+		if err == nil {
+			return t, nil
+		}
+		lastErr = err
+	}
+	return time.Time{}, lastErr
+}
+
+func unmarshalReflectJSON(v reflect.Value, bs []byte) error {
+	if strings.TrimSpace(String(bs)) == "" {
+		v.SetZero()
+		return nil
+	}
+	return json.Unmarshal(bs, v.Addr().Interface())
+}
+
+func setReflectBytes(v reflect.Value, bs []byte) error {
+	rv := reflect.ValueOf(append([]byte(nil), bs...))
+	if rv.Type().AssignableTo(v.Type()) {
+		v.Set(rv)
+		return nil
+	}
+	if rv.Type().ConvertibleTo(v.Type()) {
+		v.Set(rv.Convert(v.Type()))
+		return nil
+	}
+	return fmt.Errorf("value of type %s is not assignable to type %s", rv.Type(), v.Type())
 }
 
 func expandSlice(arg any) []any {

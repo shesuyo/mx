@@ -180,7 +180,9 @@ func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 				return rsp, err
 			}
 			if rID.IsValid() {
-				setReflectValue(rID, stringByte(strconv.Itoa(id)))
+				if err := setReflectValue(rID, stringByte(strconv.Itoa(id))); err != nil {
+					return rsp, err
+				}
 			}
 			callFunc(v, AfterCreate)
 			rsp.ID = id
@@ -718,7 +720,9 @@ func setStruct(v reflect.Value, t reflect.Type, cols map[string]int, data [][]by
 		}
 		if f.Anonymous {
 			embedV := v.FieldByName(sn)
-			setStruct(embedV, embedV.Type(), cols, data)
+			if err := setStruct(embedV, embedV.Type(), cols, data); err != nil {
+				return err
+			}
 		} else {
 			if dbFieldName == "" {
 				tagJSON := f.Tag.Get("json")
@@ -734,7 +738,9 @@ func setStruct(v reflect.Value, t reflect.Type, cols map[string]int, data [][]by
 			}
 			if dataIdx, ok := cols[dbFieldName]; ok {
 				// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
-				setReflectValue(v.FieldByName(sn), data[dataIdx])
+				if err := setReflectValue(v.FieldByName(sn), data[dataIdx]); err != nil {
+					return err
+				}
 			} else {
 				// reflect.Type.Type 是名字 例如 main.Weapon
 				// reflect.Value.Kind() 是类型
@@ -768,7 +774,9 @@ func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]b
 			}
 			if f.Anonymous {
 				embedV := rn.FieldByName(sn)
-				setStruct(embedV, embedV.Type(), cols, data[k])
+				if err := setStruct(embedV, embedV.Type(), cols, data[k]); err != nil {
+					return err
+				}
 			} else {
 				if dbFieldName == "" {
 					tagJSON := f.Tag.Get("json")
@@ -784,7 +792,9 @@ func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]b
 				}
 				if dataIdx, ok := cols[dbFieldName]; ok {
 					// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
-					setReflectValue(rn.FieldByName(sn), data[k][dataIdx])
+					if err := setReflectValue(rn.FieldByName(sn), data[k][dataIdx]); err != nil {
+						return err
+					}
 				} else {
 					// reflect.Type.Type 是名字 例如 main.Weapon
 					// reflect.Value.Kind() 是类型
@@ -817,7 +827,9 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte,
 			}
 			if f.Anonymous {
 				embedV := rn.FieldByName(sn)
-				setStruct(embedV, embedV.Type(), cols, datas[j])
+				if err := setStruct(embedV, embedV.Type(), cols, datas[j]); err != nil {
+					return err
+				}
 			} else {
 				if dbFieldName == "" {
 					tagJSON := f.Tag.Get("json")
@@ -832,7 +844,9 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte,
 					}
 				}
 				if dataIdx, ok := cols[dbFieldName]; ok {
-					setReflectValue(rn.FieldByName(sn), datas[j][dataIdx])
+					if err := setReflectValue(rn.FieldByName(sn), datas[j][dataIdx]); err != nil {
+						return err
+					}
 				} else if guess {
 					unsetValue := rn.FieldByName(sn)
 					if t.haveTablename(dbFieldName) {
@@ -884,11 +898,15 @@ func (t *Table) Struct(v any) error {
 	switch ms.rt.Kind() {
 	case reflect.Struct:
 		if len(data) > 0 {
-			ms.SetStruct(t, cols, data[0], false)
+			if err := ms.SetStruct(t, cols, data[0], false); err != nil {
+				return err
+			}
 		}
 	case reflect.Slice:
 		if len(data) > 0 {
-			ms.setSlice(t, cols, data, false)
+			if err := ms.setSlice(t, cols, data, false); err != nil {
+				return err
+			}
 		}
 	default:
 		return errors.New("Unsupport Type " + ms.rt.Kind().String())
@@ -911,11 +929,15 @@ func (t *Table) ToStruct(v any) error {
 	switch ms.rt.Kind() {
 	case reflect.Struct:
 		if len(data) > 0 {
-			ms.SetStruct(t, cols, data[0], true)
+			if err := ms.SetStruct(t, cols, data[0], true); err != nil {
+				return err
+			}
 		}
 	case reflect.Slice:
 		if len(data) > 0 {
-			ms.setSlice(t, cols, data, true)
+			if err := ms.setSlice(t, cols, data, true); err != nil {
+				return err
+			}
 		}
 	default:
 		return errors.New("Unsupport Type " + ms.rt.Kind().String())
@@ -973,11 +995,15 @@ func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, g
 
 		if f.Anonymous {
 			embedV := ms.rv.FieldByName(sn)
-			setStruct(embedV, embedV.Type(), cols, data)
+			if err := setStruct(embedV, embedV.Type(), cols, data); err != nil {
+				return err
+			}
 		} else {
 			if dataIdx, ok := cols[dbFieldName]; ok {
 				// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
-				setReflectValue(ms.rv.FieldByName(sn), data[dataIdx])
+				if err := setReflectValue(ms.rv.FieldByName(sn), data[dataIdx]); err != nil {
+					return err
+				}
 			} else if guess {
 				// reflect.Type.Type 是名字 例如 main.Weapon
 				// reflect.Value.Kind() 是类型
