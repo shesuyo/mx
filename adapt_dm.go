@@ -19,7 +19,7 @@ func (r *SQLRows) dmRowsMap() RowsMap {
 	// for _, t := range ts {
 	// 	fmt.Println(t.Name(), t.DatabaseTypeName(), t.ScanType())
 	// }
-	for i := 0; i < len(cols); i++ {
+	for i := range cols {
 		cols[i] = strings.ToLower(cols[i])
 	}
 
