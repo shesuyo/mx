@@ -26,7 +26,7 @@ func TestExtraStructMappingAndUnsupportedTargets(t *testing.T) {
 	cols := map[string]int{"id": 0, "embedded": 1, "alias": 2, "json_name": 3}
 	data := [][]byte{[]byte("5"), []byte("embed"), []byte("alias"), []byte("json")}
 
-	// 中文备注：底层 setStruct 需要同时处理匿名字段、mx 标签、json 标签和忽略字段。
+	// 底层 setStruct 需要同时处理匿名字段、mx 标签、json 标签和忽略字段。
 	var one extraTaggedModel
 	if err := setStruct(reflect.ValueOf(&one).Elem(), reflect.TypeOf(one), cols, data); err != nil {
 		t.Fatalf("setStruct() error = %v", err)
@@ -43,7 +43,7 @@ func TestExtraStructMappingAndUnsupportedTargets(t *testing.T) {
 		t.Fatalf("setSlice() = %#v", many)
 	}
 
-	// 中文备注：无法转换的字段值要把错误向上传递，避免悄悄写入半成品对象。
+	// 无法转换的字段值要把错误向上传递，避免悄悄写入半成品对象。
 	badData := [][]byte{[]byte("not-int"), []byte("embed"), []byte("alias"), []byte("json")}
 	if err := setStruct(reflect.ValueOf(&one).Elem(), reflect.TypeOf(one), cols, badData); err == nil {
 		t.Fatalf("setStruct() invalid int error = nil")
@@ -68,7 +68,7 @@ func TestExtraSearchEmptyAndScalarBranches(t *testing.T) {
 	}
 	table := db.Table("empty")
 
-	// 中文备注：空结果时 Search 的标量快捷方法都应该返回零值。
+	// 空结果时 Search 的标量快捷方法都应该返回零值。
 	if got := table.Fields("id").Int(); got != 0 {
 		t.Fatalf("Search.Int empty = %d, want 0", got)
 	}
@@ -87,7 +87,7 @@ func TestExtraSearchEmptyAndScalarBranches(t *testing.T) {
 		t.Fatalf("Search.Float first field = %v, want 2.5", got)
 	}
 
-	// 中文备注：Fields 的空输入和 $c 别名分支都只影响解析，不应该触发查询。
+	// Fields 的空输入和 $c 别名分支都只影响解析，不应该触发查询。
 	if got := userTable.Search.Clone().Fields(); got.fields != nil {
 		t.Fatalf("Search.Fields empty mutated fields = %#v", got.fields)
 	}
@@ -98,7 +98,7 @@ func TestExtraSearchEmptyAndScalarBranches(t *testing.T) {
 }
 
 func TestExtraRowsNilAndQueryErrorBranches(t *testing.T) {
-	// 中文备注：SQLRows 持有 nil rows 时，已显式防御的读取函数应安全返回空集合。
+	// SQLRows 持有 nil rows 时，已显式防御的读取函数应安全返回空集合。
 	nilRows := &SQLRows{}
 	if got := nilRows.RowsMap(); len(got) != 0 {
 		t.Fatalf("RowsMap nil rows = %#v", got)
@@ -106,7 +106,7 @@ func TestExtraRowsNilAndQueryErrorBranches(t *testing.T) {
 	if got := nilRows.RowsMapNull(); len(got) != 0 {
 		t.Fatalf("RowsMapNull nil rows = %#v", got)
 	}
-	// 中文备注：RowsMapInterface 当前没有 nil rows 防御，这里锁定现有 panic 行为。
+	// RowsMapInterface 当前没有 nil rows 防御，这里锁定现有 panic 行为。
 	func() {
 		defer func() {
 			if recover() == nil {
@@ -149,7 +149,7 @@ func TestExtraSQLRowsScanAndFindEdges(t *testing.T) {
 	db := openRowsMapStubDB(t)
 	defer db.Close()
 
-	// 中文备注：没有下一行时 Scan 返回 nil，并保持目标变量原值。
+	// 没有下一行时 Scan 返回 nil，并保持目标变量原值。
 	rows, err := db.Query("SELECT empty FROM stub")
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +174,7 @@ func TestExtraSQLRowsScanAndFindEdges(t *testing.T) {
 		t.Fatalf("Find float = %v, want 0 because first map value is not guaranteed numeric", foundFloat)
 	}
 
-	// 中文备注：ToStruct/Find 对非指针输入当前会 panic，这里锁定现有行为。
+	// ToStruct/Find 对非指针输入当前会 panic，这里锁定现有行为。
 	func() {
 		defer func() {
 			if recover() == nil {
@@ -217,7 +217,7 @@ func TestExtraTableCreateOrUpdateReadAndDateBranches(t *testing.T) {
 		t.Fatalf("hard Delete = %d, %v; want 2, nil", got, err)
 	}
 
-	// 中文备注：Search 为空时 Clone 会补一个新的 Search，避免后续链式调用空指针。
+	// Search 为空时 Clone 会补一个新的 Search，避免后续链式调用空指针。
 	bare := &Table{DataBase: db, tableName: "user"}
 	cloned := bare.Clone()
 	if cloned == bare || cloned.Search == nil || cloned.Search.table != cloned || cloned.Search.tableName != "user" {
@@ -227,7 +227,7 @@ func TestExtraTableCreateOrUpdateReadAndDateBranches(t *testing.T) {
 	base := newUnitTableWithDB("user", map[string][]string{
 		"user": {"id", "created_at"},
 	})
-	// 中文备注：只传结束时间的日期/月/时分过滤会按当前实现生成开始参数为空的条件。
+	// 只传结束时间的日期/月/时分过滤会按当前实现生成开始参数为空的条件。
 	tests := []struct {
 		name      string
 		table     *Table
@@ -271,7 +271,7 @@ func TestExtraStructToMapJSONFailureAndPeriodBranches(t *testing.T) {
 	}}
 	record := badJSONStruct{ID: 10, Payload: []func(){func() {}}}
 
-	// 中文备注：结构体字段 JSON 序列化失败时，structToMap 使用字符串 "null" 保持 SQL 参数可写。
+	// 结构体字段 JSON 序列化失败时，structToMap 使用字符串 "null" 保持 SQL 参数可写。
 	got := structToMap(reflect.ValueOf(record), table)
 	if got["payload"] != "null" || got["id"] != 10 {
 		t.Fatalf("structToMap bad json = %#v", got)
@@ -341,7 +341,7 @@ func TestExtraNewDataBaseRegisteredPrefixDrivers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.driver, func(t *testing.T) {
-			// 中文备注：这些分支只验证 DSN 前缀到 driver 名称的选择，不依赖真实数据库服务。
+			// 这些分支只验证 DSN 前缀到 driver 名称的选择，不依赖真实数据库服务。
 			db, err := NewDataBase(tt.dsn, Config{Timeout: time.Second})
 			if err != nil {
 				t.Fatalf("NewDataBase(%q) error = %v", tt.dsn, err)

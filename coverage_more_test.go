@@ -191,7 +191,7 @@ func TestDMRowsMapCoversDateTimeAndNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 中文备注：达梦适配会把列名转成小写，并按数据库类型格式化日期时间。
+	// 达梦适配会把列名转成小写，并按数据库类型格式化日期时间。
 	got := (&SQLRows{driver: "dm", rows: rows}).RowsMap()
 	want := RowsMap{{
 		"id":         "7",
@@ -204,7 +204,7 @@ func TestDMRowsMapCoversDateTimeAndNull(t *testing.T) {
 		t.Fatalf("dm RowsMap() = %#v, want %#v", got, want)
 	}
 
-	// 中文备注：错误和空 rows 都应该安全返回空切片，不能 panic。
+	// 错误和空 rows 都应该安全返回空切片，不能 panic。
 	if got := (&SQLRows{driver: "dm", err: errors.New("query failed")}).RowsMap(); len(got) != 0 {
 		t.Fatalf("dm RowsMap error = %#v, want empty", got)
 	}
@@ -214,7 +214,7 @@ func TestDMRowsMapCoversDateTimeAndNull(t *testing.T) {
 }
 
 func TestConversionHelpersCoverPrimitiveBranches(t *testing.T) {
-	// 中文备注：String 的特殊分支用于避免常见基础类型走 fmt 的慢路径。
+	// String 的特殊分支用于避免常见基础类型走 fmt 的慢路径。
 	stringCases := []struct {
 		name string
 		in   any
@@ -237,7 +237,7 @@ func TestConversionHelpersCoverPrimitiveBranches(t *testing.T) {
 		t.Fatalf("Float() = %v, want 2.25", got)
 	}
 
-	// 中文备注：Int 支持多种整数类型和字节切片，这里把每个类型分支都跑一遍。
+	// Int 支持多种整数类型和字节切片，这里把每个类型分支都跑一遍。
 	intCases := []struct {
 		name string
 		in   any
@@ -271,7 +271,7 @@ func TestConversionHelpersCoverPrimitiveBranches(t *testing.T) {
 func TestSetReflectValueBlankJSONAndNilTargets(t *testing.T) {
 	var m map[string]int
 
-	// 中文备注：空白 JSON 输入会被当成零值，避免把空字符串传给 json.Unmarshal。
+	// 空白 JSON 输入会被当成零值，避免把空字符串传给 json.Unmarshal。
 	if err := setReflectValue(reflect.ValueOf(&m).Elem(), []byte("   ")); err != nil {
 		t.Fatalf("setReflectValue blank map error = %v", err)
 	}
@@ -279,7 +279,7 @@ func TestSetReflectValueBlankJSONAndNilTargets(t *testing.T) {
 		t.Fatalf("blank map = %#v, want nil zero value", m)
 	}
 
-	// 中文备注：不可设置或无效的 reflect.Value 应直接忽略，方便上层扫描容错。
+	// 不可设置或无效的 reflect.Value 应直接忽略，方便上层扫描容错。
 	if err := setReflectValue(reflect.Value{}, []byte("1")); err != nil {
 		t.Fatalf("setReflectValue invalid value error = %v", err)
 	}
@@ -292,7 +292,7 @@ func TestSetReflectValueBlankJSONAndNilTargets(t *testing.T) {
 	}
 
 	var runes []rune
-	// 中文备注：setReflectBytes 只接受 []byte 或可转换的别名，其他切片类型要返回错误。
+	// setReflectBytes 只接受 []byte 或可转换的别名，其他切片类型要返回错误。
 	if err := setReflectBytes(reflect.ValueOf(&runes).Elem(), []byte("abc")); err == nil {
 		t.Fatalf("setReflectBytes []rune error = nil")
 	}
@@ -303,7 +303,7 @@ func TestSearchAdditionalBranches(t *testing.T) {
 		"user": {"id", "name"},
 	})
 
-	// 中文备注：空字段列表和空 NOT IN 条件应保持原查询不变。
+	// 空字段列表和空 NOT IN 条件应保持原查询不变。
 	if got := table.Fields(); got != table {
 		t.Fatalf("Fields() empty returned different table")
 	}
@@ -311,10 +311,10 @@ func TestSearchAdditionalBranches(t *testing.T) {
 	assertParsed(t, table.WhereLikeLeft("name", ""), "SELECT * FROM `user`", nil)
 	assertParsed(t, table.WhereLikeRight("name", ""), "SELECT * FROM `user`", nil)
 
-	// 中文备注：NOT IN 传入切片时需要展开成多个占位符。
+	// NOT IN 传入切片时需要展开成多个占位符。
 	assertParsed(t, table.NotIn("id", []any{1, 2}), "SELECT * FROM `user` WHERE id NOT IN (?,?)", []any{1, 2})
 
-	// 中文备注：raw 查询模式直接复用已有 SQL 和参数，不再走拼装逻辑。
+	// raw 查询模式直接复用已有 SQL 和参数，不再走拼装逻辑。
 	raw := table.Search.Clone()
 	raw.raw = true
 	raw.query = "SELECT raw WHERE id = ?"
@@ -324,7 +324,7 @@ func TestSearchAdditionalBranches(t *testing.T) {
 		t.Fatalf("raw Parse() = %q %#v, want %q %#v", gotQuery, gotArgs, raw.query, raw.args)
 	}
 
-	// 中文备注：MustIn 空集合会短路，所有读取方法都应返回空值且不触发查询。
+	// MustIn 空集合会短路，所有读取方法都应返回空值且不触发查询。
 	noQuery := table.MustIn("id")
 	if row := noQuery.RowMap(); len(row) != 0 {
 		t.Fatalf("noNeed RowMap = %#v, want empty", row)
@@ -356,7 +356,7 @@ func TestTableBatchDebugCountAndEachAddTableString(t *testing.T) {
 	db := resetCRUDStubDB(t)
 	table := db.Table("user")
 
-	// 中文备注：批量 IN 会按 batchSize 拆多次查询，stub 每次固定返回两行。
+	// 批量 IN 会按 batchSize 拆多次查询，stub 每次固定返回两行。
 	if got := table.InBatch(1, "id", 1, 2); len(got) != 4 {
 		t.Fatalf("InBatch() len = %d, want 4", len(got))
 	}
@@ -364,7 +364,7 @@ func TestTableBatchDebugCountAndEachAddTableString(t *testing.T) {
 		t.Fatalf("InAuto() len = %d, want 2", len(got))
 	}
 
-	// 中文备注：当天和早于当天的条件包含当前日期，断言 SQL 形状和日期参数即可。
+	// 当天和早于当天的条件包含当前日期，断言 SQL 形状和日期参数即可。
 	todayQuery, todayArgs := table.WhereToday("created_at").Parse()
 	wantToday := time.Now().Format("2006-01-02")
 	if !strings.Contains(todayQuery, "created_at >=") || !strings.Contains(todayQuery, "created_at <") || len(todayArgs) != 1 {
@@ -383,7 +383,7 @@ func TestTableBatchDebugCountAndEachAddTableString(t *testing.T) {
 		t.Fatalf("Count() = %d, want 5", got)
 	}
 
-	// 中文备注：表级 Debug 只切换 Search 标记，真实查询仍委托给 DataBase。
+	// 表级 Debug 只切换 Search 标记，真实查询仍委托给 DataBase。
 	if table.Debug() != table || !table.Search.debug {
 		t.Fatalf("Debug() did not enable table search debug")
 	}
@@ -411,7 +411,7 @@ func TestTableBatchDebugCountAndEachAddTableString(t *testing.T) {
 		t.Fatalf("Explain(true) = %#v", explain)
 	}
 
-	// 中文备注：EachAddTableString 用另一张表的查询结果回填当前 RowsMap。
+	// EachAddTableString 用另一张表的查询结果回填当前 RowsMap。
 	rows := RowsMap{{"uid": "1"}, {"uid": "9"}}
 	rows.EachAddTableString(table, "uid", "id", "name", "user_name")
 	if rows[0]["user_name"] != "alice" || rows[1]["user_name"] != "" {
@@ -427,7 +427,7 @@ func TestTableBatchDebugCountAndEachAddTableString(t *testing.T) {
 func TestResultAndSortAdditionalBranches(t *testing.T) {
 	errRows := &SQLRows{err: errors.New("scan failed")}
 
-	// 中文备注：SQLRows 出错时，便捷读取方法统一返回零值，方便调用方链式处理。
+	// SQLRows 出错时，便捷读取方法统一返回零值，方便调用方链式处理。
 	if got := errRows.PluckInt("id"); len(got) != 0 {
 		t.Fatalf("PluckInt error = %#v, want empty", got)
 	}
@@ -480,7 +480,7 @@ func TestTableFullMemberCreatesAndDeletesMissingMembers(t *testing.T) {
 	db := resetCRUDStubDB(t)
 	table := db.Table("user")
 
-	// 中文备注：FullMember 会删除旧集合里不存在的成员，并创建新集合里缺失的成员。
+	// FullMember 会删除旧集合里不存在的成员，并创建新集合里缺失的成员。
 	err := table.FullMember(
 		[]map[string]string{
 			{"name": "alice"},
@@ -524,7 +524,7 @@ func TestDataBaseFindConnectionAndNestedFindAllWithStub(t *testing.T) {
 		"coverage_parent_id": {Name: "coverage_parent_id"},
 	}
 
-	// 中文备注：当前实现会先 Elem 再判断指针，因此非指针输入会 panic。
+	// 当前实现会先 Elem 再判断指针，因此非指针输入会 panic。
 	func() {
 		defer func() {
 			if recover() == nil {
@@ -533,7 +533,7 @@ func TestDataBaseFindConnectionAndNestedFindAllWithStub(t *testing.T) {
 		}()
 		_ = db.Find(CoverageParent{}, "SELECT * FROM coverage_parent")
 	}()
-	// 中文备注：Find 覆盖原生 SQL、ID 条件和自定义 where 条件。
+	// Find 覆盖原生 SQL、ID 条件和自定义 where 条件。
 	var rawOne CoverageParent
 	if err := db.Find(&rawOne, "SELECT * FROM coverage_parent WHERE id=?", 1); err != nil {
 		t.Fatalf("Find raw SQL error = %v", err)
@@ -556,7 +556,7 @@ func TestDataBaseFindConnectionAndNestedFindAllWithStub(t *testing.T) {
 		t.Fatalf("Find where slice = %#v", many)
 	}
 
-	// 中文备注：FindAll 会继续填充结构体和切片类型的关联字段。
+	// FindAll 会继续填充结构体和切片类型的关联字段。
 	var parent CoverageParent
 	if err := db.FindAll(&parent, "SELECT * FROM coverage_parent WHERE id=?", 1); err != nil {
 		t.Fatalf("FindAll parent error = %v", err)
@@ -598,7 +598,7 @@ func TestModelStructRichMappingAndGuessRelations(t *testing.T) {
 	cols := map[string]int{"id": 0, "embedded_name": 1, "alias": 2, "named": 3}
 	row := [][]byte{[]byte("7"), []byte("embed"), []byte("alias value"), []byte("json name")}
 
-	// 中文备注：SetStruct 同时覆盖匿名结构体、mx 标签、json 标签和自动猜测关联。
+	// SetStruct 同时覆盖匿名结构体、mx 标签、json 标签和自动猜测关联。
 	var model coverageRichModel
 	ms, err := NewModelStruct(&model)
 	if err != nil {
@@ -614,7 +614,7 @@ func TestModelStructRichMappingAndGuessRelations(t *testing.T) {
 		t.Fatalf("SetStruct guessed relations = %#v", model)
 	}
 
-	// 中文备注：ModelStruct.setSlice 应对每一行执行同样的字段映射和 AfterFind 回调。
+	// ModelStruct.setSlice 应对每一行执行同样的字段映射和 AfterFind 回调。
 	var models []coverageRichModel
 	ms, err = NewModelStruct(&models)
 	if err != nil {
@@ -645,19 +645,19 @@ func TestDataBaseConnectionBranches(t *testing.T) {
 		"coverage_label_coverage_owner": {"coverage_label_id", "coverage_owner_id"},
 	})
 
-	// 中文备注：got 表包含 target_id 时，走“已知从表找主表”的分支。
+	// got 表包含 target_id 时，走“已知从表找主表”的分支。
 	con, ok := db.connection("coverage_target", reflect.ValueOf(CoverageBelong{ID: 4, CoverageTargetID: 9}))
 	if !ok || len(con) != 2 || con[1] != 9 || !strings.Contains(con[0].(string), "SELECT `coverage_belong`.*") {
 		t.Fatalf("connection belong = %#v, %v", con, ok)
 	}
 
-	// 中文备注：target 表包含 got_id 时，走“一对多”分支。
+	// target 表包含 got_id 时，走“一对多”分支。
 	con, ok = db.connection("coverage_item", reflect.ValueOf(CoverageOwner{ID: 6}))
 	if !ok || len(con) != 2 || con[1] != 6 || con[0] != "SELECT * FROM `coverage_item` WHERE coverage_owner_id = ?" {
 		t.Fatalf("connection has-many = %#v, %v", con, ok)
 	}
 
-	// 中文备注：中间表同时包含两侧外键时，走多对多 join 分支。
+	// 中间表同时包含两侧外键时，走多对多 join 分支。
 	con, ok = db.connection("coverage_label", reflect.ValueOf(CoverageOwner{ID: 6}))
 	if !ok || len(con) != 2 || con[1] != 6 || !strings.Contains(con[0].(string), "LEFT JOIN coverage_label_coverage_owner") {
 		t.Fatalf("connection many-to-many = %#v, %v", con, ok)
@@ -676,14 +676,14 @@ func TestDatabaseMetadataAndInitErrorBranches(t *testing.T) {
 	}
 	defer raw.Close()
 
-	// 中文备注：Config.parse 当前没有副作用，调用一次用于锁定无操作行为。
+	// Config.parse 当前没有副作用，调用一次用于锁定无操作行为。
 	conf := Config{Timeout: time.Second, MaxIdleConns: 1, MaxOpenConns: 2}
 	conf.parse()
 	if conf.Timeout != time.Second || conf.MaxIdleConns != 1 || conf.MaxOpenConns != 2 {
 		t.Fatalf("Config.parse changed config: %#v", conf)
 	}
 
-	// 中文备注：未命中缓存时，getColumns 会查询 information_schema 并写回缓存。
+	// 未命中缓存时，getColumns 会查询 information_schema 并写回缓存。
 	db := &DataBase{db: raw, tableColumns: map[string]Columns{}, mm: new(sync.Mutex)}
 	cols := db.getColumns("user")
 	if !cols.HaveColumn("id") || !cols.HaveColumn("name") {
@@ -693,7 +693,7 @@ func TestDatabaseMetadataAndInitErrorBranches(t *testing.T) {
 		t.Fatalf("getColumns did not cache result: %#v", db.tableColumns)
 	}
 
-	// 中文备注：当前仓库没有注册这些驱动，NewDataBase 应在 sql.Open 阶段返回错误。
+	// 当前仓库没有注册这些驱动，NewDataBase 应在 sql.Open 阶段返回错误。
 	for _, dsn := range []string{"postgres://unit", "dm://unit", "db2://unit", "sqlserver://unit"} {
 		t.Run(dsn, func(t *testing.T) {
 			if got, err := NewDataBase(dsn, Config{Timeout: time.Millisecond}); err == nil {
@@ -711,7 +711,7 @@ func TestDatabaseMetadataAndInitErrorBranches(t *testing.T) {
 		t.Fatalf("NewDataBase bad mysql dsn error = nil")
 	}
 
-	// 中文备注：PingContext 超时要转成连接初始化错误，而不是一直阻塞。
+	// PingContext 超时要转成连接初始化错误，而不是一直阻塞。
 	slow, err := sql.Open(slowPingDriverName, "")
 	if err != nil {
 		t.Fatal(err)
