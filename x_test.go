@@ -24,9 +24,21 @@ func init() {
 		return
 	}
 	db, testDBErr = NewDataBase(testDSN)
-	if testDBErr == nil {
-		UserTable = db.Table("user")
+	if testDBErr != nil {
+		return
 	}
+	if testDBErr = prepareIntegrationFixture(db); testDBErr != nil {
+		return
+	}
+	if err := db.DB().Close(); err != nil {
+		testDBErr = err
+		return
+	}
+	db, testDBErr = NewDataBase(testDSN)
+	if testDBErr != nil {
+		return
+	}
+	UserTable = db.Table("user")
 }
 
 func requireIntegrationUserTable(tb testing.TB) *Table {
