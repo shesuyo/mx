@@ -908,6 +908,8 @@ func (t *Table) Struct(v any) error {
 	return nil
 }
 
+// Deprecated: 请将逻辑替换成Struct
+// 自动加载表可能会造成一些性能影响，请使用Struct代替，手动控制子表查询
 // ToStruct auto query
 func (t *Table) ToStruct(v any) error {
 	if t.Search.noNeedQuery {

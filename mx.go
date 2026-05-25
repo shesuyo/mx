@@ -531,10 +531,10 @@ func (db *DataBase) Updates(objs any) (int, error) {
 	return v.Elem().Len(), nil
 }
 
+// Deprecated: 请将逻辑替换成Struct
 // Find 将查找数据放到结构体里面
 // 如果不传条件则是查找所有人
 // Read Find Select
-// deprecated
 func (db *DataBase) Find(obj any, args ...any) error {
 	var (
 		v = reflect.ValueOf(obj)
