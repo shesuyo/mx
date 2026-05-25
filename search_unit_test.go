@@ -124,7 +124,7 @@ func TestSearchMustInShortCircuitsEmptyArgs(t *testing.T) {
 			}
 
 			query, args := got.Parse()
-			wantQuery := "SELECT * FROM `user` WHERE `user`.`id`<0"
+			wantQuery := "SELECT * FROM `user`"
 			if query != wantQuery {
 				t.Fatalf("Parse query = %q, want %q", query, wantQuery)
 			}

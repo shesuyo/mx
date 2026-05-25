@@ -172,7 +172,7 @@ func getTags(v reflect.Value, t reflect.Type, table *Table) []string {
 	structTagMu.Lock()
 	numField := v.NumField()
 	tags = make([]string, numField)
-	for i := 0; i < numField; i++ {
+	for i := range numField {
 		fieldName := t.Field(i).Tag.Get("mx")
 		if fieldName != "-" {
 			if fieldName == "" {
@@ -197,7 +197,7 @@ func structToMap(v reflect.Value, table *Table) map[string]any {
 	m := make(map[string]any, numField)
 	tags := getTags(v, t, table)
 
-	for i := 0; i < numField; i++ {
+	for i := range numField {
 		if tags[i] == "" {
 			continue
 		}

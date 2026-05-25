@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"reflect"
 	"slices"
@@ -196,9 +197,7 @@ func (rm RowMap) NotFound() bool {
 // Copy return a Copy RowMap
 func (rm RowMap) Copy() RowMap {
 	r := make(RowMap, len(rm))
-	for k, v := range rm {
-		r[k] = v
-	}
+	maps.Copy(r, rm)
 	return r
 }
 
@@ -280,9 +279,7 @@ func (rm RowsMap) Copy() RowsMap {
 	nrm := make(RowsMap, 0, len(rm))
 	for _, r := range rm {
 		nr := make(RowMap, len(r))
-		for k, v := range r {
-			nr[k] = v
-		}
+		maps.Copy(nr, r)
 		nrm = append(nrm, nr)
 	}
 	return nrm
@@ -624,9 +621,9 @@ func (rm *RowsMap) EachAddTableString(table *Table, args ...string) {
 	datas := table.Fields(fiels...).In(args[1], rm.Pluck(args[0])...).RowsMap()
 	rmLen := len(*rm)
 	datasLen := len(datas)
-	for i := 0; i < rmLen; i++ {
+	for i := range rmLen {
 		isFound := false
-		for j := 0; j < datasLen; j++ {
+		for j := range datasLen {
 			if (*rm)[i][args[0]] == datas[j][args[1]] {
 				isFound = true
 				for k := 2; k < argsLen; k += 2 {
@@ -646,7 +643,7 @@ func (rm *RowsMap) EachAddTableString(table *Table, args ...string) {
 // EachMod mod each rowmap
 func (rm RowsMap) EachMod(f func(RowMap)) RowsMap {
 	l := len(rm)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		f(rm[i])
 	}
 	return rm
@@ -963,7 +960,7 @@ func (rm RowsMap) PluckInt(key string) []int {
 func (rm RowsMap) Unique(field string) RowsMap {
 	uniqueMap := make(map[string]bool, 10)
 	urm := RowsMap{}
-	for i := 0; i < len(rm); i++ {
+	for i := range rm {
 		if !uniqueMap[rm[i][field]] {
 			uniqueMap[rm[i][field]] = true
 			urm = append(urm, rm[i])

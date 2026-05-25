@@ -754,7 +754,7 @@ func setStruct(v reflect.Value, t reflect.Type, cols map[string]int, data [][]by
 
 func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]byte) (err error) {
 	t = v.Type().Elem()
-	for k := 0; k < len(data); k++ {
+	for k := range data {
 		rnp := reflect.New(t)
 		rn := rnp.Elem()
 		for i := 0; i < t.NumField(); i++ {
@@ -811,10 +811,10 @@ func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]b
 func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte, guess bool) (err error) {
 	rt := ms.rv.Type().Elem()
 	numField := rt.NumField()
-	for j := 0; j < len(datas); j++ {
+	for j := range datas {
 		rnp := reflect.New(rt)
 		rn := rnp.Elem()
-		for i := 0; i < numField; i++ {
+		for i := range numField {
 			// mx json toDBName(fieldName)
 			var (
 				dbFieldName string
@@ -970,7 +970,7 @@ func NewModelStruct(v any) (*ModelStruct, error) {
 
 func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, guess bool) error {
 	numField := ms.rt.NumField()
-	for i := 0; i < numField; i++ {
+	for i := range numField {
 		// mx json toDBName(fieldName)
 		var (
 			dbFieldName string
