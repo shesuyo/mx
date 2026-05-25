@@ -132,14 +132,34 @@ func TestSearchMustInShortCircuitsEmptyArgs(t *testing.T) {
 			}
 
 			query, args := got.Parse()
-			wantQuery := "SELECT * FROM `user`"
-			if query != wantQuery {
-				t.Fatalf("Parse query = %q, want %q", query, wantQuery)
+			if query != "" {
+				t.Fatalf("Parse query = %q, want empty", query)
 			}
 			if len(args) != 0 {
 				t.Fatalf("Parse args = %#v, want empty", args)
 			}
 		})
+	}
+}
+
+func TestSearchNoNeedQueryResultHelpersShortCircuit(t *testing.T) {
+	table := newUnitTable("user", "id").MustIn("id")
+
+	if got := table.Count(); got != 0 {
+		t.Fatalf("Count() = %d, want 0", got)
+	}
+	if got := table.Explain(false); got != (Explain{}) {
+		t.Fatalf("Explain() = %#v, want zero value", got)
+	}
+
+	var rows []struct {
+		ID int
+	}
+	if err := table.Finds(&rows); err != nil {
+		t.Fatalf("Finds() error = %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("Finds() rows = %#v, want empty", rows)
 	}
 }
 

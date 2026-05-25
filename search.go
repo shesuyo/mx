@@ -250,6 +250,9 @@ func (s *Search) Having(query string, args ...any) *Search {
 // LIMIT 1
 // OFFSET 1
 func (s *Search) Parse() (string, []any) {
+	if s.noNeedQuery {
+		return "", []any{}
+	}
 	if s.raw {
 		return s.query, s.args
 	}
@@ -434,6 +437,9 @@ func (s *Search) RowMap() RowMap {
 
 // Explain 执行 EXPLAIN 查询并返回解析后的执行计划；debug 为 true 时打印 SQL 信息。
 func (s *Search) Explain(debug bool) Explain {
+	if s.noNeedQuery {
+		return Explain{}
+	}
 	query, args := s.Parse()
 	r := s.table.Query("EXPLAIN "+query, args...).RowMap()
 	if debug {
@@ -556,6 +562,9 @@ func (s *Search) Bool(args ...string) bool {
 // Deprecated: 请使用Struct代替
 // Finds 执行查询并将结果填充到传入结构体或结构体切片中。
 func (s *Search) Finds(v any) error {
+	if s.noNeedQuery {
+		return nil
+	}
 	query, args := s.Parse()
 	return s.table.FindAll(v, append([]any{query}, args...)...)
 }

@@ -652,6 +652,9 @@ func (t *Table) Having(query string, args ...any) *Table {
 
 // Count count
 func (t *Table) Count() int {
+	if t.Search.noNeedQuery {
+		return 0
+	}
 	s := t.Clone().Search
 	var count int
 	s.fields = []string{"COUNT(*)"}
