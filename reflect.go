@@ -5,11 +5,6 @@ import (
 )
 
 const (
-	CREATE = "CREATE"
-	READ   = "READ"
-	UPDATE = "UPDATE"
-	DELET  = "DELETE"
-
 	DBName = "DBName"
 
 	BeforeCreate = "BeforeCreate"
