@@ -634,6 +634,32 @@ func TestRowMapInterfaceMoreHelpers(t *testing.T) {
 	}
 }
 
+func TestRowsMapInterfaceSortAndMultiWarpDuplicates(t *testing.T) {
+	rows := RowsMapInterface{
+		{"id": 2, "name": "b"},
+		{"id": 1, "name": "a"},
+	}
+	rows.Sort("id")
+	if rows[0].Int("id") != 1 {
+		t.Fatalf("RowsMapInterface.Sort int asc = %#v", rows)
+	}
+	rows.Sort("name", true)
+	if rows[0].String("name") != "b" {
+		t.Fatalf("RowsMapInterface.Sort string desc = %#v", rows)
+	}
+
+	warps := RowsMap{
+		{"p_id": "1", "p_name": "parent", "c_id": "1", "c_name": "child"},
+		{"p_id": "1", "p_name": "parent", "c_id": "1", "c_name": "child"},
+	}.MultiWarpByField("p_id", "p_name", "c_id", "c_name")
+	if len(warps) != 1 || len(warps[0].Vals) != 1 {
+		t.Fatalf("MultiWarpByField duplicate collapse = %#v", warps)
+	}
+	if got := (RowsMap{}).MultiWarpByField("p_id", "p_name"); len(got) != 0 {
+		t.Fatalf("MultiWarpByField empty rows = %#v, want empty", got)
+	}
+}
+
 func TestSQLRowsMoreHelpers(t *testing.T) {
 	db := openRowsMapStubDB(t)
 	defer db.Close()
@@ -735,6 +761,18 @@ func TestSQLRowsFindAndToStruct(t *testing.T) {
 	}
 	if !reflect.DeepEqual(many, []rowStruct{{ID: 7, Name: "alice"}, {ID: 0, Name: "bob"}}) {
 		t.Fatalf("ToStruct slice = %#v", many)
+	}
+
+	type badStruct struct {
+		Name int `json:"name"`
+	}
+	var badOne badStruct
+	if err := queryRows(t).ToStruct(&badOne); err == nil {
+		t.Fatalf("ToStruct struct conversion error = nil")
+	}
+	var badMany []badStruct
+	if err := queryRows(t).ToStruct(&badMany); err == nil {
+		t.Fatalf("ToStruct slice conversion error = nil")
 	}
 
 	var found rowStruct

@@ -41,6 +41,9 @@ func (rowsMapStubConn) QueryContext(ctx context.Context, query string, args []dr
 	if query == "SELECT single FROM stub" {
 		return &rowsMapSingleStubRows{}, nil
 	}
+	if query == "SELECT scan_error FROM stub" {
+		return &rowsMapScanErrStubRows{}, nil
+	}
 	return &rowsMapStubRows{}, nil
 }
 
@@ -98,6 +101,25 @@ func (rowsMapEmptyStubRows) Next(dest []driver.Value) error {
 	return io.EOF
 }
 
+type rowsMapScanErrStubRows struct {
+	done bool
+}
+
+func (rowsMapScanErrStubRows) Columns() []string {
+	return []string{"bad"}
+}
+
+func (rowsMapScanErrStubRows) Close() error { return nil }
+
+func (r *rowsMapScanErrStubRows) Next(dest []driver.Value) error {
+	if r.done {
+		return io.EOF
+	}
+	dest[0] = struct{}{}
+	r.done = true
+	return nil
+}
+
 func TestSQLRowsScanHelpers(t *testing.T) {
 	db, err := sql.Open(rowsMapTestDriverName, "")
 	if err != nil {
@@ -142,5 +164,50 @@ func TestSQLRowsScanHelpers(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotRowsMapNull, wantRowsMapNull) {
 		t.Fatalf("RowsMapNull() = %#v, want %#v", gotRowsMapNull, wantRowsMapNull)
+	}
+}
+
+func TestSQLRowsScanErrorBranches(t *testing.T) {
+	db, err := sql.Open(rowsMapTestDriverName, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT * FROM stub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := (&SQLRows{rows: rows}).RowsMapInterface(); len(got) != 0 {
+		t.Fatalf("RowsMapInterface closed rows = %#v, want empty", got)
+	}
+	if cols, data := (&SQLRows{rows: rows}).DoubleSlice(); len(cols) != 0 || len(data) != 0 {
+		t.Fatalf("DoubleSlice closed rows = %#v, %#v; want empty", cols, data)
+	}
+	if cols, data := (&SQLRows{rows: rows}).TripleByte(); len(cols) != 0 || len(data) != 0 {
+		t.Fatalf("TripleByte closed rows = %#v, %#v; want empty", cols, data)
+	}
+
+	rows, err = db.Query("SELECT scan_error FROM stub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cols, data := (&SQLRows{rows: rows}).DoubleSlice(); len(cols) != 0 || len(data) != 0 {
+		t.Fatalf("DoubleSlice scan error = %#v, %#v; want empty", cols, data)
+	}
+
+	rows, err = db.Query("SELECT scan_error FROM stub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cols, data := (&SQLRows{rows: rows}).TripleByte(); len(cols) != 0 || len(data) != 0 {
+		t.Fatalf("TripleByte scan error = %#v, %#v; want empty", cols, data)
+	}
+
+	if got := (&SQLRows{err: errors.New("query failed")}).RowsMapNull(); len(got) != 0 {
+		t.Fatalf("RowsMapNull error = %#v, want empty", got)
 	}
 }

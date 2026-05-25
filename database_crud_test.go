@@ -220,6 +220,57 @@ func (m *crudSaveModel) AfterUpdate() error {
 	return nil
 }
 
+type crudAfterCreateErrModel struct {
+	ID   int    `mx:"id"`
+	Name string `mx:"name"`
+}
+
+func (crudAfterCreateErrModel) DBName() string { return "user" }
+
+func (m *crudAfterCreateErrModel) AfterCreate() error {
+	return errors.New("after create failed")
+}
+
+type crudBadIDModel struct {
+	ID   bool   `mx:"id"`
+	Name string `mx:"name"`
+}
+
+func (crudBadIDModel) DBName() string { return "user" }
+
+type crudDBHookModel struct {
+	ID                int    `mx:"id"`
+	Name              string `mx:"name"`
+	FailBeforeCreate  bool   `mx:"-"`
+	AfterCreateCount  int    `mx:"-"`
+	BeforeDeleteCount int    `mx:"-"`
+	AfterDeleteCount  int    `mx:"-"`
+}
+
+func (crudDBHookModel) DBName() string { return "user" }
+
+func (m *crudDBHookModel) BeforeCreate() error {
+	if m.FailBeforeCreate {
+		return errors.New("before create failed")
+	}
+	return nil
+}
+
+func (m *crudDBHookModel) AfterCreate() error {
+	m.AfterCreateCount++
+	return errors.New("after create failed")
+}
+
+func (m *crudDBHookModel) BeforeDelete() error {
+	m.BeforeDeleteCount++
+	return nil
+}
+
+func (m *crudDBHookModel) AfterDelete() error {
+	m.AfterDeleteCount++
+	return nil
+}
+
 func TestDataBaseQueryExecAndTableMetadataWithStub(t *testing.T) {
 	db := resetCRUDStubDB(t)
 	table := db.Table("user")
@@ -386,8 +437,25 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 		t.Fatalf("Save slice error = %v", err)
 	}
 
+	afterCreateBad := crudAfterCreateErrModel{Name: "after create"}
+	if rsp, err := table.Save(&afterCreateBad); err != nil || rsp.ID != 17 || afterCreateBad.ID != 17 {
+		t.Fatalf("Save currently ignores AfterCreate error rsp=%#v model=%#v err=%v", rsp, afterCreateBad, err)
+	}
+
+	badID := crudBadIDModel{Name: "bad id"}
+	if _, err := table.Save(&badID); err == nil {
+		t.Fatalf("Save bool ID conversion error = nil")
+	}
+
 	if _, err := db.Create(crudSaveModel{}); !errors.Is(err, ErrMustBeAddr) {
 		t.Fatalf("DataBase.Create non-pointer error = %v", err)
+	}
+	if _, err := db.Create(&crudDBHookModel{Name: "bad", FailBeforeCreate: true}); err == nil {
+		t.Fatalf("DataBase.Create before hook error = nil")
+	}
+	dbHookModel := crudDBHookModel{Name: "db hook"}
+	if id, err := db.Create(&dbHookModel); err != nil || id != 17 || dbHookModel.AfterCreateCount != 1 {
+		t.Fatalf("DataBase.Create currently ignores AfterCreate error id=%d model=%#v err=%v", id, dbHookModel, err)
 	}
 	dbModel := crudSaveModel{Name: "db create"}
 	if id, err := db.Create(&dbModel); err != nil || id != 17 || dbModel.ID != 17 {
@@ -410,6 +478,20 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 	if _, err := db.Delete(&crudSaveModel{}); !errors.Is(err, ErrMustNeedID) {
 		t.Fatalf("DataBase.Delete no ID error = %v", err)
 	}
+	deleteHookModel := crudDBHookModel{ID: 1}
+	if got, err := db.Delete(&deleteHookModel); err != nil || got != 2 || deleteHookModel.BeforeDeleteCount != 1 || deleteHookModel.AfterDeleteCount != 1 {
+		t.Fatalf("DataBase.Delete hooks got=%d model=%#v err=%v", got, deleteHookModel, err)
+	}
+	crudMu.Lock()
+	crudExecErr = errors.New("delete failed")
+	crudMu.Unlock()
+	deleteErrHookModel := crudDBHookModel{ID: 1}
+	if got, err := db.Delete(&deleteErrHookModel); err == nil || got != 0 || deleteErrHookModel.AfterDeleteCount != 1 {
+		t.Fatalf("DataBase.Delete exec error hooks got=%d model=%#v err=%v", got, deleteErrHookModel, err)
+	}
+	crudMu.Lock()
+	crudExecErr = nil
+	crudMu.Unlock()
 	if got, err := db.Delete(&crudSaveModel{ID: 1}); err != nil || got != 2 {
 		t.Fatalf("DataBase.Delete = %d, %v", got, err)
 	}
@@ -471,6 +553,9 @@ func TestSearchResultHelpersWithStub(t *testing.T) {
 	if got := table.Fields("name").String("name"); got != "alice" {
 		t.Fatalf("Search.String(name) = %q", got)
 	}
+	if got := db.Table("empty").Fields("name").String(); got != "" {
+		t.Fatalf("Search.String empty rows = %q, want empty", got)
+	}
 	if got := table.Fields("amount").Float("amount"); got != 2.5 {
 		t.Fatalf("Search.Float(amount) = %v", got)
 	}
@@ -489,6 +574,37 @@ func TestSearchResultHelpersWithStub(t *testing.T) {
 	}
 	if len(found) != 2 || found[0].Name != "alice" {
 		t.Fatalf("Search.Finds() = %#v", found)
+	}
+}
+
+func TestDataBaseFindErrorAndNoHookSliceBranches(t *testing.T) {
+	db := resetCRUDStubDB(t)
+
+	crudMu.Lock()
+	crudQueryErr = errors.New("find failed")
+	crudMu.Unlock()
+	var rawOne crudSaveModel
+	if err := db.Find(&rawOne, "SELECT * FROM user WHERE id=?", 1); err != nil {
+		t.Fatalf("Find raw SQL currently suppresses query error = %v", err)
+	}
+	var byID crudSaveModel
+	if err := db.Find(&byID, 1); err != nil {
+		t.Fatalf("Find generated query currently suppresses query error = %v", err)
+	}
+	crudMu.Lock()
+	crudQueryErr = nil
+	crudMu.Unlock()
+
+	type noAfterFindModel struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	var rows []noAfterFindModel
+	if err := db.Find(&rows, "age > ?", 18); err != nil {
+		t.Fatalf("Find slice without AfterFind error = %v", err)
+	}
+	if len(rows) != 2 || rows[0].Name != "alice" {
+		t.Fatalf("Find slice without AfterFind = %#v", rows)
 	}
 }
 

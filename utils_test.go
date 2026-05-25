@@ -1027,6 +1027,8 @@ func TestSetReflectValueAdditionalTypes(t *testing.T) {
 		{"struct json", reflect.ValueOf(&st).Elem(), []byte(`{"a":2}`), jsonStruct{A: 2}},
 		{"interface", reflect.ValueOf(&iface).Elem(), []byte("raw"), any("raw")},
 		{"nil int", reflect.ValueOf(&emptyInt).Elem(), nil, 0},
+		{"empty int", reflect.ValueOf(&emptyInt).Elem(), []byte(""), 0},
+		{"empty uint", reflect.ValueOf(new(uint)).Elem(), []byte(""), uint(0)},
 		{"empty bool", reflect.ValueOf(&emptyBool).Elem(), []byte(""), false},
 		{"empty float", reflect.ValueOf(&emptyF64).Elem(), []byte(""), float64(0)},
 		{"nil scanner", reflect.ValueOf(&nullStr).Elem(), nil, sql.NullString{}},
@@ -1046,6 +1048,30 @@ func TestSetReflectValueAdditionalTypes(t *testing.T) {
 
 	if err := setReflectValue(reflect.ValueOf(&reader).Elem(), []byte("raw")); err == nil {
 		t.Fatal("setReflectValue() interface error = nil")
+	}
+	var (
+		badInt    int
+		badUint   uint
+		badBool   bool
+		badStruct jsonStruct
+		badSlice  []int
+		badMap    map[string]int
+		badFloat  float64
+	)
+	for name, value := range map[string]reflect.Value{
+		"bad int":    reflect.ValueOf(&badInt).Elem(),
+		"bad uint":   reflect.ValueOf(&badUint).Elem(),
+		"bad bool":   reflect.ValueOf(&badBool).Elem(),
+		"bad struct": reflect.ValueOf(&badStruct).Elem(),
+		"bad slice":  reflect.ValueOf(&badSlice).Elem(),
+		"bad map":    reflect.ValueOf(&badMap).Elem(),
+		"bad float":  reflect.ValueOf(&badFloat).Elem(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := setReflectValue(value, []byte("not-valid")); err == nil {
+				t.Fatal("setReflectValue() error = nil")
+			}
+		})
 	}
 	var complexValue complex64
 	if err := setReflectValue(reflect.ValueOf(&complexValue).Elem(), []byte("1")); err == nil {
