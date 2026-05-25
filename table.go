@@ -184,8 +184,10 @@ func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 					return rsp, err
 				}
 			}
-			callFunc(v, AfterCreate)
 			rsp.ID = id
+			if err := callFunc(v, AfterCreate); err != nil {
+				return rsp, err
+			}
 		} else {
 			if err := callFunc(v, BeforeUpdate); err != nil {
 				return rsp, err

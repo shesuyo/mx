@@ -438,8 +438,8 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 	}
 
 	afterCreateBad := crudAfterCreateErrModel{Name: "after create"}
-	if rsp, err := table.Save(&afterCreateBad); err != nil || rsp.ID != 17 || afterCreateBad.ID != 17 {
-		t.Fatalf("Save currently ignores AfterCreate error rsp=%#v model=%#v err=%v", rsp, afterCreateBad, err)
+	if rsp, err := table.Save(&afterCreateBad); err == nil || rsp.ID != 17 || afterCreateBad.ID != 17 {
+		t.Fatalf("Save should return AfterCreate error rsp=%#v model=%#v err=%v", rsp, afterCreateBad, err)
 	}
 
 	badID := crudBadIDModel{Name: "bad id"}
@@ -454,8 +454,8 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 		t.Fatalf("DataBase.Create before hook error = nil")
 	}
 	dbHookModel := crudDBHookModel{Name: "db hook"}
-	if id, err := db.Create(&dbHookModel); err != nil || id != 17 || dbHookModel.AfterCreateCount != 1 {
-		t.Fatalf("DataBase.Create currently ignores AfterCreate error id=%d model=%#v err=%v", id, dbHookModel, err)
+	if id, err := db.Create(&dbHookModel); err == nil || id != 17 || dbHookModel.AfterCreateCount != 1 {
+		t.Fatalf("DataBase.Create should return AfterCreate error id=%d model=%#v err=%v", id, dbHookModel, err)
 	}
 	dbModel := crudSaveModel{Name: "db create"}
 	if id, err := db.Create(&dbModel); err != nil || id != 17 || dbModel.ID != 17 {
@@ -470,6 +470,9 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 	dbModels := []crudSaveModel{{Name: "a"}, {Name: "b"}}
 	if ids, err := db.Creates(&dbModels); err != nil || !reflect.DeepEqual(ids, []int{17, 17}) {
 		t.Fatalf("DataBase.Creates ids=%#v err=%v", ids, err)
+	}
+	if dbModels[0].BeforeCreateCount != 1 || dbModels[0].AfterCreateCount != 1 || dbModels[1].BeforeCreateCount != 1 || dbModels[1].AfterCreateCount != 1 {
+		t.Fatalf("DataBase.Creates hook counts = %#v", dbModels)
 	}
 
 	if _, err := db.Delete(crudSaveModel{}); !errors.Is(err, ErrMustBeAddr) {
@@ -486,7 +489,7 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 	crudExecErr = errors.New("delete failed")
 	crudMu.Unlock()
 	deleteErrHookModel := crudDBHookModel{ID: 1}
-	if got, err := db.Delete(&deleteErrHookModel); err == nil || got != 0 || deleteErrHookModel.AfterDeleteCount != 1 {
+	if got, err := db.Delete(&deleteErrHookModel); err == nil || got != 0 || deleteErrHookModel.AfterDeleteCount != 0 {
 		t.Fatalf("DataBase.Delete exec error hooks got=%d model=%#v err=%v", got, deleteErrHookModel, err)
 	}
 	crudMu.Lock()
@@ -501,8 +504,8 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 	if got, err := db.Deletes(&crudSaveModel{}); !errors.Is(err, ErrMustBeSlice) || got != 0 {
 		t.Fatalf("DataBase.Deletes non-slice = %d, %v", got, err)
 	}
-	if got, err := db.Deletes(&[]crudSaveModel{{ID: 1}, {ID: 2}}); err != nil || got != 0 {
-		t.Fatalf("DataBase.Deletes current return = %d, %v", got, err)
+	if got, err := db.Deletes(&[]crudSaveModel{{ID: 1}, {ID: 2}}); err != nil || got != 4 {
+		t.Fatalf("DataBase.Deletes return = %d, %v", got, err)
 	}
 
 	if err := db.Update(crudSaveModel{}); !errors.Is(err, ErrMustBeAddr) {

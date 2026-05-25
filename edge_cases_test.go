@@ -135,8 +135,8 @@ func TestEdgeDataBaseStructCRUDErrors(t *testing.T) {
 		t.Fatalf("DataBase.Update missing id error = %v, want ErrNoUpdateKey", err)
 	}
 	updated, err := db.Updates(&[]edgeSaveHookModel{{ID: 1, Name: "ok"}, {Name: "missing id"}})
-	if !errors.Is(err, ErrNoUpdateKey) || updated != 0 {
-		t.Fatalf("DataBase.Updates stops on error updated=%d err=%v, want 0 and ErrNoUpdateKey", updated, err)
+	if !errors.Is(err, ErrNoUpdateKey) || updated != 1 {
+		t.Fatalf("DataBase.Updates stops on error updated=%d err=%v, want 1 and ErrNoUpdateKey", updated, err)
 	}
 
 	// 当前 Find 在无参数时会先访问 args[0]，这里锁定这个边界行为，便于后续修复时有测试提醒。

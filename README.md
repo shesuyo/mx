@@ -9,7 +9,7 @@
 - 基于 `database/sql`，默认使用 `github.com/go-sql-driver/mysql`
 - 表级链式查询：`Where`、`In`、`MustIn`、`Joins`、`Fields`、`Group`、`Having`、`OrderBy`、`Limit`、`Page`
 - map CRUD：`Create`、`Creates`、`Update`、`Delete`、`Read`、`Reads`、`CreateOrUpdate`
-- 结构体 CRUD：`Create`、`Update`、`Delete`、`Save`、`ToStruct`
+- 结构体 CRUD：`Create`、`Update`、`Delete`、`Save`、`Struct`
 - 查询结果支持 `RowsMap`、`RowMap`、`RowsMapInterface`、`RowsMapNull`、结构体扫描
 - 支持 `BeforeCreate`、`AfterCreate`、`BeforeUpdate`、`AfterUpdate`、`BeforeDelete`、`AfterDelete`、`AfterFind` 钩子
 - 自动读取 MySQL `information_schema.COLUMNS`，用于字段识别、软删除识别、结构体映射和自动 JOIN
@@ -281,13 +281,13 @@ rsp, err := db.Table("user").Save(&u, mx.OmitFields{"temporary_field"})
 var users []User
 err := db.Table("user").
 	Where("age > ?", 18).
-	ToStruct(&users)
+	Struct(&users)
 
 var one User
 err = db.Table("user").
 	WhereID(1).
 	Limit(1).
-	ToStruct(&one)
+	Struct(&one)
 ```
 
 ## 钩子
@@ -370,7 +370,7 @@ _ = data
 - `Table.Delete` 不会自动追加 `LIMIT 1`，会删除或软删除所有匹配条件的数据
 - `Table.Delete(map[string]any{})` 会返回 `ErrNoDeleteKey`
 - `In` / `NotIn` 传入空数组时不会追加条件；空数组应返回空结果时请使用 `MustIn`
-- 结构体 CRUD 和结构体扫描必须传指针，例如 `db.Create(&u)`、`table.ToStruct(&users)`
+- 结构体 CRUD 和结构体扫描必须传指针，例如 `db.Create(&u)`、`table.Struct(&users)`
 - `RowsMap` 和大部分 `RowsMapInterface` 结果值是字符串；需要 `NULL` 语义时使用 `RowsMapNull`
 - `GetFullSQL` 只适合调试日志，不是 SQL 转义函数，执行 SQL 时仍应使用参数绑定
 - 复杂 SQL 建议直接写 `db.Query` / `db.Exec`，不要为了使用 ORM 强行拼链式调用

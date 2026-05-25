@@ -405,14 +405,19 @@ func (db *DataBase) Create(obj any) (int, error) {
 		}
 	}
 	id, err := table.Create(m)
+	if err != nil {
+		return 0, err
+	}
 
 	rID := v.Elem().FieldByName("ID")
 	if rID.IsValid() {
 		rID.SetInt(int64(id))
 	}
 
-	callFunc(v, AfterCreate)
-	return id, err
+	if err := callFunc(v, AfterCreate); err != nil {
+		return id, err
+	}
+	return id, nil
 }
 
 // Creates 根据相应多个结构体进行创建
@@ -428,19 +433,10 @@ func (db *DataBase) Creates(objs any) ([]int, error) {
 
 	for i, num := 0, v.Elem().Len(); i < num; i++ {
 		obj := v.Elem().Index(i).Addr()
-		beforeCreate := obj.MethodByName(BeforeCreate)
-		if beforeCreate.IsValid() {
-			beforeCreate.Call(nil)
-		}
 		id, err := db.Create(obj.Interface())
 		if err != nil {
 			return ids, err
 		}
-		afterCreate := obj.MethodByName(AfterCreate)
-		if afterCreate.IsValid() {
-			afterCreate.Call(nil)
-		}
-
 		ids = append(ids, int(id))
 	}
 
@@ -453,10 +449,8 @@ func (db *DataBase) Delete(obj any) (int, error) {
 	if v.Kind() != reflect.Pointer {
 		return 0, ErrMustBeAddr
 	}
-	beforeFunc := v.MethodByName(BeforeDelete)
-	afterFunc := v.MethodByName(AfterDelete)
-	if beforeFunc.IsValid() {
-		beforeFunc.Call(nil)
+	if err := callFunc(v, BeforeDelete); err != nil {
+		return 0, err
 	}
 	id := getStructID(v)
 	if id == 0 {
@@ -465,10 +459,13 @@ func (db *DataBase) Delete(obj any) (int, error) {
 	tableName := getStructDBName(v)
 
 	count, err := db.Table(tableName).Delete(map[string]any{"id": id})
-	if afterFunc.IsValid() {
-		afterFunc.Call(nil)
+	if err != nil {
+		return int(count), err
 	}
-	return int(count), err
+	if err := callFunc(v, AfterDelete); err != nil {
+		return int(count), err
+	}
+	return int(count), nil
 }
 
 // Deletes Deletes
@@ -489,7 +486,7 @@ func (db *DataBase) Deletes(objs any) (int, error) {
 			return affCount, err
 		}
 	}
-	return 0, nil
+	return affCount, nil
 }
 
 // Update Update
@@ -499,7 +496,9 @@ func (db *DataBase) Update(obj any) error {
 	if v.Kind() != reflect.Pointer {
 		return ErrMustBeAddr
 	}
-	callFunc(v, BeforeUpdate)
+	if err := callFunc(v, BeforeUpdate); err != nil {
+		return err
+	}
 	tableName := getStructDBName(v)
 	table := db.Table(tableName)
 	m := structToMap(v, table)
@@ -508,7 +507,9 @@ func (db *DataBase) Update(obj any) error {
 	if err != nil {
 		return err
 	}
-	callFunc(v, AfterUpdate)
+	if err := callFunc(v, AfterUpdate); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -525,7 +526,7 @@ func (db *DataBase) Updates(objs any) (int, error) {
 	for i, num := 0, v.Elem().Len(); i < num; i++ {
 		err := db.Update(v.Elem().Index(i).Addr().Interface())
 		if err != nil {
-			return 0, err
+			return i, err
 		}
 	}
 	return v.Elem().Len(), nil
@@ -680,6 +681,7 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]any, bool) {
 	return []any{}, false
 }
 
+// Deprecated: 请使用 Table.Struct 代替，并手动控制子表查询。
 // FindAll 在需要的时候将自动查询结构体子结构体
 func (db *DataBase) FindAll(v any, args ...any) error {
 	if err := db.Find(v, args...); err != nil {
