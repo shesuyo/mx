@@ -560,7 +560,7 @@ func (t *Table) InBatch(batchSize int, field string, args ...any) RowsMap {
 			end = len(args)
 		}
 		batch := args[i:end]
-		batchRows := t.Clone().Search.In(field, batch...).table.RowsMap()
+		batchRows := t.Clone().Search.MustIn(field, batch...).table.RowsMap()
 		rs = append(rs, batchRows...)
 	}
 	return rs

@@ -83,13 +83,13 @@ type Search struct {
 	noNeedQuery bool
 }
 
-// Clone 克隆一个当前结构体
+// Clone 克隆当前 Search，返回独立的浅拷贝实例。
 func (s *Search) Clone() *Search {
 	clone := *s
 	return &clone
 }
 
-// Fields 需要查询的字段
+// Fields 添加需要查询的字段，支持 $C 或 $c 快捷写法表示 COUNT(*) AS total。
 func (s *Search) Fields(args ...string) *Search {
 	if len(args) == 0 {
 		return s
@@ -104,19 +104,19 @@ func (s *Search) Fields(args ...string) *Search {
 	return s
 }
 
-// Where where语法
+// Where 添加自定义 WHERE 条件和对应参数。
 func (s *Search) Where(query string, values ...any) *Search {
 	s.whereConditions = append(s.whereConditions, WhereCon{Query: query, Args: values})
 	return s
 }
 
-// WhereID id = ?
+// WhereID 添加当前表 id 等于指定值的 WHERE 条件。
 func (s *Search) WhereID(id any) *Search {
 	s.whereConditions = append(s.whereConditions, WhereCon{Query: s.tableName + ".id = ?", Args: []any{id}})
 	return s
 }
 
-// In in语法
+// In 添加 field IN (...) 条件，args 可传多个值或单个切片；空参数时不添加条件。
 func (s *Search) In(field string, args ...any) *Search {
 	//in没有参数的话SQL就会报错
 	if len(args) == 0 {
@@ -133,11 +133,10 @@ func (s *Search) In(field string, args ...any) *Search {
 	return s
 }
 
-// MustIn in语法
+// MustIn 添加 field IN (...) 条件，空参数或空切片时标记为无需查询。
 func (s *Search) MustIn(field string, args ...any) *Search {
-	// 强制 in nothing 就查 tableName.id<0，有些表没ID，减少查询，干脆不查询。
+	// 强制 in nothing 不查询。
 	if len(args) == 0 {
-		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
 		s.noNeedQuery = true
 		return s
 	}
@@ -146,7 +145,6 @@ func (s *Search) MustIn(field string, args ...any) *Search {
 	}
 	// 解析之后还可能为0
 	if len(args) == 0 {
-		s.whereConditions = append(s.whereConditions, WhereCon{Query: fmt.Sprintf("`%s`.`id`<0", s.tableName)})
 		s.noNeedQuery = true
 		return s
 	}
@@ -154,7 +152,7 @@ func (s *Search) MustIn(field string, args ...any) *Search {
 	return s
 }
 
-// NotIn not in 语法
+// NotIn 添加 field NOT IN (...) 条件，args 可传多个值或单个切片；空参数时不添加条件。
 func (s *Search) NotIn(field string, args ...any) *Search {
 	if len(args) == 0 {
 		return s
@@ -169,7 +167,7 @@ func (s *Search) NotIn(field string, args ...any) *Search {
 	return s
 }
 
-// Joins join语法，自动连表。
+// Joins 添加 LEFT JOIN 条件；未指定 condition 时按表字段关系自动生成关联条件。
 func (s *Search) Joins(tablename string, condition ...string) *Search {
 	if len(condition) == 1 {
 		s.joinConditions = append(s.joinConditions, JoinCon{TableName: tablename, Condition: condition[0]})
@@ -187,7 +185,7 @@ func (s *Search) Joins(tablename string, condition ...string) *Search {
 	return s
 }
 
-// OrderBy OrderBy 默认升序
+// OrderBy 添加排序条件，默认升序；isDESC 为 true 时使用降序。
 func (s *Search) OrderBy(field string, isDESC ...bool) *Search {
 	if len(isDESC) > 0 && isDESC[0] {
 		s.orderbyConditions = append(s.orderbyConditions, field+" DESC")
@@ -197,37 +195,37 @@ func (s *Search) OrderBy(field string, isDESC ...bool) *Search {
 	return s
 }
 
-// TableName tableName
+// TableName 设置当前查询使用的主表名。
 func (s *Search) TableName(name string) *Search {
 	s.tableName = name
 	return s
 }
 
-// Limit LIMIT ?
+// Limit 设置 SELECT 语句的 LIMIT 参数。
 func (s *Search) Limit(limit any) *Search {
 	s.limit = limit
 	return s
 }
 
-// Offset OFFSET ?
+// Offset 设置 SELECT 语句的 OFFSET 参数。
 func (s *Search) Offset(offset any) *Search {
 	s.offset = offset
 	return s
 }
 
-// Group GROUP BY
+// Group 添加 GROUP BY 字段。
 func (s *Search) Group(field ...string) *Search {
 	s.groupConditions = append(s.groupConditions, field...)
 	return s
 }
 
-// Having having
+// Having 添加 HAVING 条件和对应参数。
 func (s *Search) Having(query string, args ...any) *Search {
 	s.havingConditions = append(s.havingConditions, WhereCon{Query: query, Args: args})
 	return s
 }
 
-// Parse 将各个条件整合成可以查询的SQL语句和参数
+// Parse 将 Search 中的字段、关联、条件、分组、排序和分页整合成 SQL 语句及参数。
 // SELECT COUNT(*) AS total,cid
 // FROM report
 // WHERE id > 1000000
@@ -321,6 +319,8 @@ func (s *Search) Parse() (string, []any) {
 	return s.query, s.args
 }
 
+// warpField 包装查询字段名，自动给已知表字段添加反引号并返回表名和字段名。
+// 支持以下字段形式：
 // DISTINCT XX
 // DISTICT XXX.XXX AS aaa
 // XXX.XXX AS aaa
@@ -350,9 +350,8 @@ func (s *Search) warpField(field string) (warpStr string, tablename string, fiel
 	return
 }
 
-// warpFieldSingle field without space
-// warp xxx OR xxx.xxx OR * OR COUNT(*) OR tablename.*
-// 这里的都没有空格的
+// warpFieldSingle 包装不含空格的单个字段表达式，自动补齐当前表名并添加反引号。
+// 支持 xxx、xxx.xxx、*、COUNT(*)、tablename.* 等形式。
 // 单个属性 id
 // 表名.属性
 // 表名.*
@@ -408,7 +407,7 @@ func (s *Search) warpFieldSingle(field string) (warpStr string, tablename string
 
 //结果展示
 
-// RowMap RowMap
+// RowMap 执行查询并返回第一行字符串键值映射；无需查询时返回空 RowMap。
 func (s *Search) RowMap() RowMap {
 	if s.noNeedQuery {
 		return RowMap{}
@@ -418,7 +417,7 @@ func (s *Search) RowMap() RowMap {
 	return s.table.Query(query, args...).RowMap()
 }
 
-// Explain explian sql
+// Explain 执行 EXPLAIN 查询并返回解析后的执行计划；debug 为 true 时打印 SQL 信息。
 func (s *Search) Explain(debug bool) Explain {
 	query, args := s.Parse()
 	r := s.table.Query("EXPLAIN "+query, args...).RowMap()
@@ -444,7 +443,7 @@ func (s *Search) Explain(debug bool) Explain {
 	return e
 }
 
-// RowsMap RowsMap
+// RowsMap 执行查询并返回多行字符串键值映射；无需查询时返回空 RowsMap。
 func (s *Search) RowsMap() RowsMap {
 	if s.noNeedQuery {
 		return RowsMap{}
@@ -453,7 +452,7 @@ func (s *Search) RowsMap() RowsMap {
 	return s.table.Query(query, args...).RowsMap()
 }
 
-// RowMapInterface RowMapInterface
+// RowMapInterface 执行查询并返回第一行 interface 键值映射；无需查询时返回空 RowMapInterface。
 func (s *Search) RowMapInterface() RowMapInterface {
 	if s.noNeedQuery {
 		return RowMapInterface{}
@@ -462,7 +461,7 @@ func (s *Search) RowMapInterface() RowMapInterface {
 	return s.table.Query(query, args...).RowMapInterface()
 }
 
-// RowsMapInterface RowsMapInterface
+// RowsMapInterface 执行查询并返回多行 interface 键值映射；无需查询时返回空 RowsMapInterface。
 func (s *Search) RowsMapInterface() RowsMapInterface {
 	if s.noNeedQuery {
 		return RowsMapInterface{}
@@ -471,7 +470,7 @@ func (s *Search) RowsMapInterface() RowsMapInterface {
 	return s.table.Query(query, args...).RowsMapInterface()
 }
 
-// RowsMapNull NULL值会用nil替代，而不是空字符串。
+// RowsMapNull 执行查询并返回多行 interface 键值映射，NULL 值用 nil 替代而不是空字符串。
 func (s *Search) RowsMapNull() RowsMapInterface {
 	if s.noNeedQuery {
 		return RowsMapInterface{}
@@ -480,7 +479,7 @@ func (s *Search) RowsMapNull() RowsMapInterface {
 	return s.table.Query(query, args...).RowsMapNull()
 }
 
-// DoubleSlice DoubleSlice
+// DoubleSlice 执行查询并返回字段索引和二维字符串结果；无需查询时返回空结果。
 func (s *Search) DoubleSlice() (map[string]int, [][]string) {
 	if s.noNeedQuery {
 		return map[string]int{}, [][]string{}
@@ -489,8 +488,7 @@ func (s *Search) DoubleSlice() (map[string]int, [][]string) {
 	return s.table.Query(query, args...).DoubleSlice()
 }
 
-// Int return single int value in query
-// Int 如果指定字段，则返回指定字段的int值，否则返回第一个字段作为int值返回。
+// Int 执行查询并返回单个 int 值；指定字段时读取该字段，否则读取第一行的第一个字段。
 func (s *Search) Int(args ...string) int {
 	row := s.RowMap()
 	if len(args) == 0 {
@@ -505,7 +503,7 @@ func (s *Search) Int(args ...string) int {
 	return 0
 }
 
-// String return single string value in query
+// String 执行查询并返回单个 string 值；指定字段时读取该字段，否则读取第一行的第一个字段。
 func (s *Search) String(args ...string) string {
 	row := s.RowMap()
 	if len(args) == 0 {
@@ -518,7 +516,7 @@ func (s *Search) String(args ...string) string {
 	return ""
 }
 
-// Float return single float value in query
+// Float 执行查询并返回单个 float64 值；指定字段时读取该字段，否则读取第一行的第一个字段。
 func (s *Search) Float(args ...string) float64 {
 	row := s.RowMap()
 	val := "0"
@@ -534,13 +532,14 @@ func (s *Search) Float(args ...string) float64 {
 	return f
 }
 
-// Bool Bool
+// Bool 执行查询并返回单个 bool 值；指定字段时读取该字段，否则读取第一行的第一个字段。
 func (s *Search) Bool(args ...string) bool {
 	row := s.RowMap()
 	return row.Bool(args...)
 }
 
-// Finds 将查询的结构放入到结构体当中
+// Deprecated: 请使用Struct代替
+// Finds 执行查询并将结果填充到传入结构体或结构体切片中。
 func (s *Search) Finds(v any) error {
 	query, args := s.Parse()
 	return s.table.FindAll(v, append([]any{query}, args...)...)
