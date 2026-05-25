@@ -5,14 +5,10 @@ import (
 )
 
 const (
-	C      = "CREATE"
-	CREATE = C
-	R      = "READ"
-	READ   = R
-	U      = "UPDATE"
-	UPDATE = U
-	D      = "DELETE"
-	DELET  = D
+	CREATE = "CREATE"
+	READ   = "READ"
+	UPDATE = "UPDATE"
+	DELET  = "DELETE"
 
 	DBName = "DBName"
 
