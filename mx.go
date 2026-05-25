@@ -117,8 +117,8 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		}
 		return mx, nil
 	}
-	if strings.HasPrefix(dataSourceName, "sqlserver://") {
-		db, err := sql.Open("sqlserver", strings.TrimPrefix(dataSourceName, "sqlserver://"))
+	if after, ok := strings.CutPrefix(dataSourceName, "sqlserver://"); ok {
+		db, err := sql.Open("sqlserver", after)
 		if err != nil {
 			return nil, err
 		}

@@ -214,7 +214,7 @@ func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 		}
 		ve := v.Elem()
 		sLen := ve.Len()
-		for i := 0; i < sLen; i++ {
+		for i := range sLen {
 			_, err := t.Save(ve.Index(i).Addr().Interface())
 			if err != nil {
 				return rsp, err
@@ -261,7 +261,7 @@ func (t *Table) Creates(ms []map[string]any) (int, error) {
 	sqlFields := []string{}
 	sqlArgs := []string{}
 	sqlArg := "(" + argslice(len(ms[0])) + ")"
-	for i := 0; i < len(ms); i++ {
+	for range ms {
 		sqlArgs = append(sqlArgs, sqlArg)
 	}
 
@@ -555,10 +555,7 @@ func (t *Table) In(field string, args ...any) *Table {
 func (t *Table) InBatch(batchSize int, field string, args ...any) RowsMap {
 	rs := RowsMap{}
 	for i := 0; i < len(args); i += batchSize {
-		end := i + batchSize
-		if end > len(args) {
-			end = len(args)
-		}
+		end := min(i+batchSize, len(args))
 		batch := args[i:end]
 		batchRows := t.Clone().Search.MustIn(field, batch...).table.RowsMap()
 		rs = append(rs, batchRows...)
@@ -619,10 +616,7 @@ func (t *Table) Offset(n any) *Table {
 
 // Page page => limit & offset
 func (t *Table) Page(limit, page int) *Table {
-	offset := (page - 1) * limit
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((page-1)*limit, 0)
 	return t.Clone().Search.Limit(limit).Offset(offset).table
 }
 

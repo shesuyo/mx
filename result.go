@@ -745,7 +745,7 @@ func (rw RowsWraps) HaveKey(key string) bool {
 func (rw *RowsWraps) Set(key string, val RowMap) {
 	if rw.HaveKey(key) {
 		l := len(*rw)
-		for i := 0; i < l; i++ {
+		for i := range l {
 			if (*rw)[i].Key == key {
 				(*rw)[i].Val = append((*rw)[i].Val, val)
 			}

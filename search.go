@@ -94,7 +94,7 @@ func (s *Search) Fields(args ...string) *Search {
 	if len(args) == 0 {
 		return s
 	}
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		switch args[i] {
 		case "$C", "$c":
 			args[i] = "COUNT(*) AS total"
@@ -261,7 +261,7 @@ func (s *Search) Parse() (string, []any) {
 	if len(fieldList) == 0 {
 		fields = "*"
 	} else {
-		for i := 0; i < len(fieldList); i++ {
+		for i := range fieldList {
 			var tableName string
 			fieldList[i], tableName, _ = s.warpField(fieldList[i])
 			if tableName != s.tableName {
@@ -332,7 +332,7 @@ func (s *Search) warpField(field string) (warpStr string, tablename string, fiel
 		if strings.Contains(field, "AS") {
 			// XXX AS XXX
 			sp := strings.Split(field, " ")
-			for i := 0; i < len(sp); i++ {
+			for i := range sp {
 				if sp[i] == "AS" {
 					sp[i-1], tablename, fieldname = s.warpFieldSingle(sp[i-1])
 					warpStr = strings.Join(sp, " ")

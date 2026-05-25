@@ -76,7 +76,7 @@ func ToStructName(name string) string {
 
 func toStructName(name string) string {
 	sp := strings.Split(name, "_")
-	for i := 0; i < len(sp); i++ {
+	for i := range sp {
 		val := structNameMap[sp[i]]
 		if val == "" {
 			if len(sp[i]) > 0 && sp[i][0] >= 'a' && sp[i][0] <= 'z' {
@@ -269,8 +269,8 @@ const (
 var (
 	errPeriodParse = errors.New("period parse err")
 
-	reflectTimeType        = reflect.TypeOf(time.Time{})
-	reflectSQLNullTimeType = reflect.TypeOf(sql.NullTime{})
+	reflectTimeType        = reflect.TypeFor[time.Time]()
+	reflectSQLNullTimeType = reflect.TypeFor[sql.NullTime]()
 )
 
 // timeParse time parse from string

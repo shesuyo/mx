@@ -35,7 +35,7 @@ func (r *SQLRows) dmRowsMap() RowsMap {
 			}
 		}
 		r.rows.Scan(containers...)
-		for i := 0; i < len(cols); i++ {
+		for i := range cols {
 			switch v := containers[i].(type) {
 			case *[]byte:
 				rowMap[cols[i]] = string(*containers[i].(*[]byte))

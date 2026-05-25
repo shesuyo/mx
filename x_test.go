@@ -78,7 +78,7 @@ func TestQuery1(t *testing.T) {
 	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
 	for sr.rows.Next() {
 		vals := make([]*sql.RawBytes, 7)
-		for i := 0; i < 7; i++ {
+		for i := range 7 {
 			vals[i] = &sql.RawBytes{}
 		}
 		t.Log(sr.Scan(&vals))
@@ -107,7 +107,7 @@ func TestQuery2(t *testing.T) {
 			t.Log(ct.Name(), ct.DatabaseTypeName(), ct.ScanType().Name(), length)
 		}
 		vals := make([]*sql.RawBytes, len(cols))
-		for i := 0; i < len(cols); i++ {
+		for i := range cols {
 			vals[i] = &sql.RawBytes{}
 		}
 		t.Log(sr.Scan(&vals))
@@ -263,12 +263,12 @@ func BenchmarkSliceGet0(b *testing.B) {
 
 func BenchmarkSliceGet10(b *testing.B) {
 	m := []KeyWithColumns{}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < 20; j++ {
+		for j := range 20 {
 			if m[j].key == "field10" {
 				break
 			}
@@ -277,12 +277,12 @@ func BenchmarkSliceGet10(b *testing.B) {
 }
 func BenchmarkSliceGet19(b *testing.B) {
 	m := []KeyWithColumns{}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < 20; j++ {
+		for j := range 20 {
 			if m[j].key == "field19" {
 				break
 			}
@@ -302,7 +302,7 @@ func TestQuery(t *testing.T) {
 	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
 	for sr.rows.Next() {
 		vals := make([]*sql.RawBytes, 7)
-		for i := 0; i < 7; i++ {
+		for i := range 7 {
 			vals[i] = &sql.RawBytes{}
 		}
 		t.Log(sr.Scan(&vals))
@@ -319,7 +319,7 @@ func BenchmarkQuery(b *testing.B) {
 		sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
 		for sr.rows.Next() {
 			vals := make([]*sql.RawBytes, 7)
-			for i := 0; i < 7; i++ {
+			for i := range 7 {
 				vals[i] = &sql.RawBytes{}
 			}
 			sr.Scan(&vals)
