@@ -116,6 +116,9 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 	if r.err != nil {
 		return rs
 	}
+	if r.rows == nil {
+		return rs
+	}
 
 	cols, err := r.rows.Columns()
 	if err != nil {
@@ -1273,6 +1276,9 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 	if r.err != nil {
 		return map[string]int{}, datas
 	}
+	if r.rows == nil {
+		return map[string]int{}, datas
+	}
 	cols, err := r.rows.Columns()
 	if err != nil {
 		return map[string]int{}, datas
@@ -1308,6 +1314,9 @@ func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
 	cols := make([]string, 0)
 	datas := make([][][]byte, 0)
 	if r.err != nil {
+		return map[string]int{}, datas
+	}
+	if r.rows == nil {
 		return map[string]int{}, datas
 	}
 	cols, err := r.rows.Columns()

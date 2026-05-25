@@ -622,6 +622,14 @@ func (m *afterFindModel) AfterFind() error {
 	return nil
 }
 
+type afterFindErrModel struct {
+	ID int `json:"id"`
+}
+
+func (m *afterFindErrModel) AfterFind() error {
+	return edgeHookErr
+}
+
 func TestModelStructSetStructAndTableStructWithStub(t *testing.T) {
 	db := resetCRUDStubDB(t)
 	table := db.Table("user")
@@ -660,6 +668,15 @@ func TestModelStructSetStructAndTableStructWithStub(t *testing.T) {
 	}
 	if err := table.Where("age > ?", 20).Struct(new(int)); err == nil {
 		t.Fatalf("Table.Struct unsupported error = nil")
+	}
+
+	var errModel afterFindErrModel
+	if err := table.WhereID(1).Struct(&errModel); !errors.Is(err, edgeHookErr) {
+		t.Fatalf("Table.Struct AfterFind error = %v, want %v", err, edgeHookErr)
+	}
+	var errModels []afterFindErrModel
+	if err := table.Where("age > ?", 20).ToStruct(&errModels); !errors.Is(err, edgeHookErr) {
+		t.Fatalf("Table.ToStruct slice AfterFind error = %v, want %v", err, edgeHookErr)
 	}
 
 	noQuery := table.MustIn("id")

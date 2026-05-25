@@ -570,9 +570,13 @@ func (db *DataBase) Find(obj any, args ...any) error {
 			tableName = getStructDBName(elem)
 		}
 
-		if id := Int(args[0]); len(args) == 1 && id != 0 {
-			where += " AND id = ? "
-			args = append(args, id)
+		if len(args) == 1 {
+			if id := Int(args[0]); id != 0 {
+				where += " AND id = ? "
+				args = append(args, id)
+			} else {
+				args = append(args, nil)
+			}
 		} else if len(args) > 1 {
 			where += "AND " + args[0].(string)
 		} else {
@@ -609,12 +613,16 @@ func (db *DataBase) Find(obj any, args ...any) error {
 			if !afterFunc.IsValid() {
 				return nil
 			}
-			afterFunc.Call(nil)
+			if err := callHookFunc(afterFunc); err != nil {
+				return err
+			}
 		}
 	case reflect.Struct:
 		afterFunc := v.MethodByName("AfterFind")
 		if afterFunc.IsValid() {
-			afterFunc.Call(nil)
+			if err := callHookFunc(afterFunc); err != nil {
+				return err
+			}
 		}
 	}
 

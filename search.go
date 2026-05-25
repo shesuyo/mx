@@ -86,7 +86,22 @@ type Search struct {
 // Clone 克隆当前 Search，返回独立的浅拷贝实例。
 func (s *Search) Clone() *Search {
 	clone := *s
+	clone.fields = append([]string(nil), s.fields...)
+	clone.joinConditions = append(JoinCons(nil), s.joinConditions...)
+	clone.whereConditions = cloneWhereCons(s.whereConditions)
+	clone.orderbyConditions = append([]string(nil), s.orderbyConditions...)
+	clone.groupConditions = append([]string(nil), s.groupConditions...)
+	clone.havingConditions = cloneWhereCons(s.havingConditions)
+	clone.args = append([]any(nil), s.args...)
 	return &clone
+}
+
+func cloneWhereCons(cons []WhereCon) []WhereCon {
+	out := append([]WhereCon(nil), cons...)
+	for i := range out {
+		out[i].Args = append([]any(nil), out[i].Args...)
+	}
+	return out
 }
 
 // Fields 添加需要查询的字段，支持 $C 或 $c 快捷写法表示 COUNT(*) AS total。

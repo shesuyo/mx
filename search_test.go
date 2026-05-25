@@ -183,6 +183,18 @@ func TestTableCloneKeepsSearchStateIndependent(t *testing.T) {
 	}
 }
 
+func TestTableCloneDeepCopiesSearchSlices(t *testing.T) {
+	table := newUnitTable("user", "id", "name", "age")
+	base := table.Where("id > ?", 0)
+
+	first := base.Where("name = ?", "alice")
+	second := base.Where("age > ?", 18)
+
+	assertParsed(t, first, "SELECT * FROM `user` WHERE id > ? AND name = ?", []any{0, "alice"})
+	assertParsed(t, second, "SELECT * FROM `user` WHERE id > ? AND age > ?", []any{0, 18})
+	assertParsed(t, base, "SELECT * FROM `user` WHERE id > ?", []any{0})
+}
+
 func newUnitDB(tables map[string][]string) *DataBase {
 	tableColumns := make(map[string]Columns, len(tables))
 	for tableName, names := range tables {

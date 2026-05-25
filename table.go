@@ -872,7 +872,9 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte,
 			}
 		}
 		if method := rnp.MethodByName(AfterFind); method.IsValid() {
-			method.Call(nil)
+			if err := callHookFunc(method); err != nil {
+				return err
+			}
 		}
 		ms.rv.Set(reflect.Append(ms.rv, rn))
 	}
@@ -1036,7 +1038,9 @@ func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, g
 		}
 	}
 	if af, ok := ms.v.(AfterFinder); ok {
-		af.AfterFind()
+		if err := af.AfterFind(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

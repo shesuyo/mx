@@ -418,11 +418,16 @@ func Int(v any) int {
 func callFunc(v reflect.Value, name string) error {
 	f := v.MethodByName(name)
 	if f.IsValid() {
-		vs := f.Call(nil)
-		if len(vs) == 1 {
-			if err, ok := vs[0].Interface().(error); ok {
-				return err
-			}
+		return callHookFunc(f)
+	}
+	return nil
+}
+
+func callHookFunc(f reflect.Value) error {
+	vs := f.Call(nil)
+	if len(vs) == 1 {
+		if err, ok := vs[0].Interface().(error); ok {
+			return err
 		}
 	}
 	return nil

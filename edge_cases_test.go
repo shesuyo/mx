@@ -139,16 +139,13 @@ func TestEdgeDataBaseStructCRUDErrors(t *testing.T) {
 		t.Fatalf("DataBase.Updates stops on error updated=%d err=%v, want 1 and ErrNoUpdateKey", updated, err)
 	}
 
-	// 当前 Find 在无参数时会先访问 args[0]，这里锁定这个边界行为，便于后续修复时有测试提醒。
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Fatalf("DataBase.Find without args did not panic")
-			}
-		}()
-		var target edgeSaveHookModel
-		_ = db.Find(&target)
-	}()
+	var target edgeSaveHookModel
+	if err := db.Find(&target); err != nil {
+		t.Fatalf("DataBase.Find without args error = %v", err)
+	}
+	if target.ID != 1 || target.Name != "alice" {
+		t.Fatalf("DataBase.Find without args target = %#v", target)
+	}
 }
 
 func TestEdgeTableMetadataCreateOrUpdateAndFullMemberErrors(t *testing.T) {
@@ -517,15 +514,15 @@ func TestExtraRowsNilAndQueryErrorBranches(t *testing.T) {
 	if got := nilRows.RowsMapNull(); len(got) != 0 {
 		t.Fatalf("RowsMapNull nil rows = %#v", got)
 	}
-	// RowsMapInterface 当前没有 nil rows 防御，这里锁定现有 panic 行为。
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Fatalf("RowsMapInterface nil rows did not panic")
-			}
-		}()
-		_ = nilRows.RowsMapInterface()
-	}()
+	if got := nilRows.RowsMapInterface(); len(got) != 0 {
+		t.Fatalf("RowsMapInterface nil rows = %#v", got)
+	}
+	if cols, data := nilRows.DoubleSlice(); len(cols) != 0 || len(data) != 0 {
+		t.Fatalf("DoubleSlice nil rows = %#v, %#v; want empty", cols, data)
+	}
+	if cols, data := nilRows.TripleByte(); len(cols) != 0 || len(data) != 0 {
+		t.Fatalf("TripleByte nil rows = %#v, %#v; want empty", cols, data)
+	}
 
 	db := resetCRUDStubDB(t)
 	wantErr := errors.New("query failed")
