@@ -203,7 +203,7 @@ func checkDBInitContext(db *sql.DB, conf Config) error {
 
 	if err := db.PingContext(ctx); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return errors.New("杩炴帴瓒呮椂")
+			return errors.New("连接超时")
 		}
 		return err
 	}
