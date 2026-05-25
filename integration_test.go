@@ -2,15 +2,12 @@ package mx
 
 import (
 	"database/sql"
-	"encoding/json"
+	_ "embed"
+	"fmt"
 	"os"
-	"reflect"
-	"strconv"
+	"strings"
 	"testing"
 )
-
-// go test -coverprofile=c.out
-// go tool cover -html=c.out -o coverage.html
 
 var (
 	testDSN   = os.Getenv("MX_DSN")
@@ -73,6 +70,51 @@ func requireUserColumns(tb testing.TB, columns ...string) *Table {
 	return table
 }
 
+//go:embed testdata/integration_fixture.sql
+var integrationFixtureSQL string
+
+func prepareIntegrationFixture(db *DataBase) error {
+	if db == nil || db.DB() == nil {
+		return fmt.Errorf("integration fixture database is nil")
+	}
+	if !allowIntegrationFixtureReset(db.Schema) {
+		return fmt.Errorf("refuse to reset schema %q; use a test database or set MX_FIXTURE_RESET=1", db.Schema)
+	}
+
+	if _, err := db.DB().Exec("SET FOREIGN_KEY_CHECKS = 0"); err != nil {
+		return fmt.Errorf("disable foreign key checks: %w", err)
+	}
+	defer func() {
+		_, _ = db.DB().Exec("SET FOREIGN_KEY_CHECKS = 1")
+	}()
+
+	for _, query := range splitIntegrationFixtureSQL(integrationFixtureSQL) {
+		if _, err := db.DB().Exec(query); err != nil {
+			return fmt.Errorf("prepare integration fixture: %w; sql: %s", err, query)
+		}
+	}
+	return nil
+}
+
+func splitIntegrationFixtureSQL(sql string) []string {
+	parts := strings.Split(sql, ";")
+	statements := make([]string, 0, len(parts))
+	for _, part := range parts {
+		statement := strings.TrimSpace(part)
+		if statement != "" {
+			statements = append(statements, statement)
+		}
+	}
+	return statements
+}
+
+func allowIntegrationFixtureReset(schema string) bool {
+	if os.Getenv("MX_FIXTURE_RESET") == "1" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(schema), "test")
+}
+
 func TestQuery1(t *testing.T) {
 	requireIntegrationUserTable(t)
 	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
@@ -118,13 +160,18 @@ func TestQuery2(t *testing.T) {
 	}
 }
 
-// IN 使用的时候有两种情况
-// 第一种 IN长度为0的时候应该查询所有数据
-// 第二种 IN长度为0的时候应该查询不到数据
-
-// Deprecated: 弃用此方法
-
-// fmt.Println(ms.rvp.Kind(), ms.rvp.CanAddr(), ms.rvp.Elem().CanAddr())
+func TestQuery(t *testing.T) {
+	requireIntegrationUserTable(t)
+	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
+	for sr.rows.Next() {
+		vals := make([]*sql.RawBytes, 7)
+		for i := range 7 {
+			vals[i] = &sql.RawBytes{}
+		}
+		t.Log(sr.Scan(&vals))
+		t.Log(vals)
+	}
+}
 
 func TestNewModelStruct(t *testing.T) {
 	v := User{}
@@ -140,193 +187,6 @@ func TestNewModelStruct(t *testing.T) {
 	}
 }
 
-type User struct {
-	DefaultTime    `json:"default_time"`
-	ID             uint32 `json:"id"`
-	Name           string `json:"name"`
-	Age            int    `json:"age"`
-	UID            int    `json:"uid"`
-	IgnoreMe       int    `mx:"-" json:"ignore_me"`
-	AfterFindCount int    `mx:"-" json:"after_find_count"`
-	Weapon         Weapon `json:"weapon"`
-	Gems           []Gem  `json:"gem"`
-}
-
-type Weapon struct {
-	ID     int    `json:"id"`
-	UserID int    `json:"user_id"`
-	Name   string `json:"name"`
-	Lv     string `json:"lv"`
-	DefaultTime
-}
-
-type Gem struct {
-	ID             int       `json:"id"`
-	UserID         int       `json:"user_id"`
-	Name           string    `json:"name"`
-	Lv             string    `json:"lv"`
-	AfterFindCount int       `mx:"-" json:"after_find_count"`
-	History        []History `json:"history"`
-	DefaultTime
-}
-
-type History struct {
-	ID     int    `json:"id"`
-	Remark string `json:"remark"`
-}
-
-func (g *Gem) AfterFind() error {
-	g.AfterFindCount++
-	return nil
-}
-
-func (u *User) AfterFind() error {
-	u.AfterFindCount++
-	return nil
-}
-
-type DefaultTime struct {
-	Ctime string `json:"ctime"`
-	Utime string `json:"utime"`
-}
-
-// go test -benchmem -bench "^(BenchmarkReflectFunc)|(BenchmarkAssertionFunc)$"
-// goos: windows
-// goarch: amd64
-// pkg: github.com/shesuyo/mx
-// Benchmark_ReflectFunc-16         3000000               453 ns/op             208 B/op          7 allocs/op
-// Benchmark_AssertionFunc-16      200000000                6.98 ns/op            0 B/op          0 allocs/op
-// PASS
-// ok      github.com/shesuyo/mx   3.951s
-
-func BenchmarkReflectFunc(b *testing.B) {
-	u := reflect.ValueOf(&User{})
-
-	for b.Loop() {
-		if af := u.MethodByName(AfterFind); af.IsValid() {
-			af.Call(nil)
-		}
-	}
-}
-
-func BenchmarkAssertionFunc(b *testing.B) {
-	var u any = &User{}
-
-	for b.Loop() {
-		if af, ok := u.(AfterFinder); ok {
-			af.AfterFind()
-		}
-	}
-}
-
-// go test -benchmem -bench "^(BenchmarkMapGet)|(BenchmarkSliceGet.{1,2})$"
-// goos: windows
-// goarch: amd64
-// pkg: github.com/shesuyo/mx
-// BenchmarkMapGet-16              100000000               11.1 ns/op             0 B/op          0 allocs/op
-// BenchmarkSliceGet0-16           2000000000               0.84 ns/op            0 B/op          0 allocs/op
-// BenchmarkSliceGet10-16          300000000                5.05 ns/op            0 B/op          0 allocs/op
-// BenchmarkSliceGet19-16          100000000               11.8 ns/op             0 B/op          0 allocs/op
-// PASS
-// ok      github.com/shesuyo/mx   6.167s
-
-func BenchmarkMapGet(b *testing.B) {
-	m := make(map[string]Columns)
-	for i := range 20 {
-		m["field"+strconv.Itoa(i)] = Columns{}
-	}
-
-	for b.Loop() {
-		_ = m["field19"]
-	}
-}
-
-type KeyWithColumns struct {
-	key  string
-	cols Columns
-}
-
-func BenchmarkSliceGet0(b *testing.B) {
-	m := []KeyWithColumns{}
-	for i := range 20 {
-		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
-	}
-
-	for b.Loop() {
-		for j := range 20 {
-			if m[j].key == "field0" {
-				break
-			}
-		}
-	}
-}
-
-func BenchmarkSliceGet10(b *testing.B) {
-	m := []KeyWithColumns{}
-	for i := range 20 {
-		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := range 20 {
-			if m[j].key == "field10" {
-				break
-			}
-		}
-	}
-}
-func BenchmarkSliceGet19(b *testing.B) {
-	m := []KeyWithColumns{}
-	for i := range 20 {
-		m = append(m, KeyWithColumns{key: "field" + strconv.Itoa(i), cols: Columns{}})
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := range 20 {
-			if m[j].key == "field19" {
-				break
-			}
-		}
-	}
-}
-
-func BenchmarkClone(b *testing.B) {
-	requireIntegrationUserTable(b)
-	for i := 0; i < b.N; i++ {
-		_ = UserTable.Clone()
-	}
-}
-
-func TestQuery(t *testing.T) {
-	requireIntegrationUserTable(t)
-	sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
-	for sr.rows.Next() {
-		vals := make([]*sql.RawBytes, 7)
-		for i := range 7 {
-			vals[i] = &sql.RawBytes{}
-		}
-		t.Log(sr.Scan(&vals))
-		t.Log(vals)
-	}
-}
-
-// 1s 1_000ms 1_000_000us 1_000_000_000ns
-
-// BenchmarkQuery-16    	   10000	    109262 ns/op	    1624 B/op	      41 allocs/op
-func BenchmarkQuery(b *testing.B) {
-	requireIntegrationUserTable(b)
-	for i := 0; i < b.N; i++ {
-		sr := UserTable.Query("SELECT * FROM user WHERE id = ?", 2)
-		for sr.rows.Next() {
-			vals := make([]*sql.RawBytes, 7)
-			for i := range 7 {
-				vals[i] = &sql.RawBytes{}
-			}
-			sr.Scan(&vals)
-		}
-	}
-}
-
 func TestTableToStruct(t *testing.T) {
 	requireIntegrationUserTable(t)
 	u := User{}
@@ -334,45 +194,6 @@ func TestTableToStruct(t *testing.T) {
 	if u.AfterFindCount != 1 {
 		t.Fatal("AfterFind Err")
 	}
-}
-
-// BenchmarkReflectAStruct-16    	    3122	    383770 ns/op	   15140 B/op	     389 allocs/op 加载一个结构体和一个slice
-// BenchmarkReflectAStruct-16    	    9615	    117831 ns/op	    3676 B/op	      98 allocs/op
-func BenchmarkReflectAStruct(b *testing.B) {
-	requireIntegrationUserTable(b)
-	for i := 0; i < b.N; i++ {
-		_ = UserTable.Where("id = ?", 2).ToStruct(&User{})
-	}
-}
-
-// has one
-// has many
-// many to many
-
-func isSlice(args any) bool {
-	return reflect.TypeOf(args).Kind() == reflect.Slice
-}
-
-func TestIsSlice(t *testing.T) {
-	args := []any{}
-	if !isSlice(args) {
-		t.Fatal("fail with is slice")
-	}
-}
-
-func BenchmarkIsSlice(b *testing.B) {
-	args := []any{}
-	for i := 0; i < b.N; i++ {
-		isSlice(args)
-	}
-}
-
-func JSONStringify(v any) string {
-	bs, err := json.Marshal(v)
-	if err != nil {
-		return ""
-	}
-	return string(bs)
 }
 
 func TestToStructSliceNested(t *testing.T) {
@@ -386,6 +207,30 @@ func TestToStructSliceNested(t *testing.T) {
 		t.Log(u.ID, u.Name, u.Weapon.Name)
 		t.Log("gems len:", len(u.Gems))
 	}
+}
+
+// TestToStruct 测试 ToStruct 方法（单个结构体）
+func TestToStruct(t *testing.T) {
+	requireIntegrationUserTable(t)
+	var user User
+	err := UserTable.Where("id = ?", 1).ToStruct(&user)
+	if err != nil {
+		t.Errorf("ToStruct failed: %v", err)
+		return
+	}
+	t.Logf("ToStruct found user: %s (age: %d)", user.Name, user.Age)
+}
+
+// TestToStructSlice 测试 ToStruct 方法（切片）
+func TestToStructSlice(t *testing.T) {
+	requireUserColumns(t, "age")
+	var users []User
+	err := UserTable.Where("age > ?", 18).Limit(5).ToStruct(&users)
+	if err != nil {
+		t.Errorf("ToStruct slice failed: %v", err)
+		return
+	}
+	t.Logf("ToStruct found %d users", len(users))
 }
 
 // TestWhere 测试 Where 方法
@@ -505,6 +350,21 @@ func TestJoins(t *testing.T) {
 	for _, u := range users {
 		t.Logf("User: %s, Weapon: %s", u["name"], u["weapon_name"])
 	}
+}
+
+// TestParse 测试 Parse 方法
+func TestParse(t *testing.T) {
+	requireUserColumns(t, "age")
+	query, args := UserTable.Where("age > ?", 18).Limit(5).Parse()
+	t.Logf("Parsed query: %s", query)
+	t.Logf("Parsed args: %v", args)
+}
+
+// TestExplain 测试 Explain 方法
+func TestExplain(t *testing.T) {
+	requireIntegrationUserTable(t)
+	explain := UserTable.Where("id = ?", 1).Explain(false)
+	t.Logf("Explain result: %+v", explain)
 }
 
 // TestCreate 测试 Create 方法
@@ -698,30 +558,6 @@ func TestSaveUpdate(t *testing.T) {
 	UserTable.DeleteID(user.ID)
 }
 
-// TestToStruct 测试 ToStruct 方法（单个结构体）
-func TestToStruct(t *testing.T) {
-	requireIntegrationUserTable(t)
-	var user User
-	err := UserTable.Where("id = ?", 1).ToStruct(&user)
-	if err != nil {
-		t.Errorf("ToStruct failed: %v", err)
-		return
-	}
-	t.Logf("ToStruct found user: %s (age: %d)", user.Name, user.Age)
-}
-
-// TestToStructSlice 测试 ToStruct 方法（切片）
-func TestToStructSlice(t *testing.T) {
-	requireUserColumns(t, "age")
-	var users []User
-	err := UserTable.Where("age > ?", 18).Limit(5).ToStruct(&users)
-	if err != nil {
-		t.Errorf("ToStruct slice failed: %v", err)
-		return
-	}
-	t.Logf("ToStruct found %d users", len(users))
-}
-
 // TestSearchInt 测试 Int 方法
 func TestSearchInt(t *testing.T) {
 	requireIntegrationUserTable(t)
@@ -871,19 +707,4 @@ func TestRowsMapSort(t *testing.T) {
 	// 测试 SortInt 方法
 	sortedInt := rows.SortInt("age", true)
 	t.Logf("Sorted %d rows by age DESC", len(*sortedInt))
-}
-
-// TestParse 测试 Parse 方法
-func TestParse(t *testing.T) {
-	requireUserColumns(t, "age")
-	query, args := UserTable.Where("age > ?", 18).Limit(5).Parse()
-	t.Logf("Parsed query: %s", query)
-	t.Logf("Parsed args: %v", args)
-}
-
-// TestExplain 测试 Explain 方法
-func TestExplain(t *testing.T) {
-	requireIntegrationUserTable(t)
-	explain := UserTable.Where("id = ?", 1).Explain(false)
-	t.Logf("Explain result: %+v", explain)
 }
