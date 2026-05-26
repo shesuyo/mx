@@ -155,7 +155,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 	}
 
 	mx.Schema = mx.Query("SELECT DATABASE()").String()
-	if mx.Schema == "" {
+	if mx.Schema == "" && !conf.IgnoreNoDatabaseWarning {
 		log.Println("MX WARNING: 这是一个没有选择数据库的链接。")
 	}
 	tables := mx.Query("SELECT TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,COLUMN_COMMENT,COLUMN_TYPE,DATA_TYPE,IS_NULLABLE FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA = ?", mx.Schema).RowsMap().MapIndexs("TABLE_NAME")

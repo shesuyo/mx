@@ -673,7 +673,7 @@ func TestDatabaseMetadataAndInitErrorBranches(t *testing.T) {
 	// Config.parse 当前没有副作用，调用一次用于锁定无操作行为。
 	conf := Config{Timeout: time.Second, MaxIdleConns: 1, MaxOpenConns: 2}
 	conf.parse()
-	if conf.Timeout != time.Second || conf.MaxIdleConns != 1 || conf.MaxOpenConns != 2 {
+	if conf.Timeout != time.Second || conf.MaxIdleConns != 1 || conf.MaxOpenConns != 2 || conf.IgnoreNoDatabaseWarning {
 		t.Fatalf("Config.parse changed config: %#v", conf)
 	}
 

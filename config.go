@@ -18,11 +18,12 @@ var (
 
 // Config 用于创建连接的配置配置
 type Config struct {
-	DataSourceName string
-	MaxIdleConns   int
-	MaxOpenConns   int
-	Log            Logger
-	Timeout        time.Duration
+	DataSourceName          string
+	MaxIdleConns            int
+	MaxOpenConns            int
+	Log                     Logger
+	Timeout                 time.Duration
+	IgnoreNoDatabaseWarning bool // MySQL连接未选择数据库时，不打印WARNING。
 }
 
 type Logger interface {
