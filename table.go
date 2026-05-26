@@ -308,8 +308,13 @@ func (t *Table) Delete(m map[string]any) (int, error) {
 		return 0, ErrNoDeleteKey
 	}
 	ks, vs := ksvs(m, " = ? ")
-	if t.tableColumns[t.tableName].HaveColumn(IsDeleted) {
-		af, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET is_deleted = '1', deleted_at = '%s' WHERE %s", t.tableName, time.Now().Format(TimeFormat), strings.Join(ks, "AND")), vs...).RowsAffected()
+	cols := t.tableColumns[t.tableName]
+	if cols.HaveColumn(IsDeleted) {
+		setParts := []string{"is_deleted = '1'"}
+		if cols.HaveColumn("deleted_at") {
+			setParts = append(setParts, fmt.Sprintf("deleted_at = '%s'", time.Now().Format(TimeFormat)))
+		}
+		af, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", t.tableName, strings.Join(setParts, ", "), strings.Join(ks, "AND")), vs...).RowsAffected()
 		return int(af), err
 	}
 	af, err := t.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.tableName, strings.Join(ks, "AND")), vs...).RowsAffected()
@@ -320,7 +325,11 @@ func (t *Table) Delete(m map[string]any) (int, error) {
 // 如果map里面有id的话会自动删除id，然后使用id来作为更新的条件。
 // 为防止数据错误更新，Update只会更新一条数据。
 func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
-	id := m["id"]
+	copied := make(map[string]any, len(m))
+	for k, v := range m {
+		copied[k] = v
+	}
+	m = copied
 	if len(keys) == 0 {
 		keys = append(keys, "id")
 	}
@@ -348,7 +357,6 @@ func (t *Table) Update(m map[string]any, keys ...string) (int, error) {
 	delete(m, "id")
 	ks, vs := ksvs(m, " = ? ")
 	vs = append(vs, keysValue...)
-	m["id"] = id
 	ra, err := t.Exec(
 		fmt.Sprintf("UPDATE `%s` SET %s WHERE %s LIMIT 1",
 			t.tableName,

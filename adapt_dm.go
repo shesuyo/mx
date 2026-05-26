@@ -14,8 +14,15 @@ func (r *SQLRows) dmRowsMap() RowsMap {
 	if r.rows == nil {
 		return rs
 	}
-	cols, _ := r.rows.Columns()
-	ts, _ := r.rows.ColumnTypes()
+	defer r.rows.Close()
+	cols, err := r.rows.Columns()
+	if err != nil {
+		return rs
+	}
+	ts, err := r.rows.ColumnTypes()
+	if err != nil {
+		return rs
+	}
 	// for _, t := range ts {
 	// 	fmt.Println(t.Name(), t.DatabaseTypeName(), t.ScanType())
 	// }
@@ -34,7 +41,9 @@ func (r *SQLRows) dmRowsMap() RowsMap {
 				containers = append(containers, &[]byte{})
 			}
 		}
-		r.rows.Scan(containers...)
+		if err := r.rows.Scan(containers...); err != nil {
+			return RowsMap{}
+		}
 		for i := range cols {
 			switch v := containers[i].(type) {
 			case *[]byte:
@@ -55,6 +64,9 @@ func (r *SQLRows) dmRowsMap() RowsMap {
 			}
 		}
 		rs = append(rs, rowMap)
+	}
+	if err := r.rows.Err(); err != nil {
+		return RowsMap{}
 	}
 	return rs
 }

@@ -524,15 +524,9 @@ func TestDataBaseFindConnectionAndNestedFindAllWithStub(t *testing.T) {
 		"coverage_parent_id": {Name: "coverage_parent_id"},
 	}
 
-	// 当前实现会先 Elem 再判断指针，因此非指针输入会 panic。
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Fatalf("Find non-pointer did not panic")
-			}
-		}()
-		_ = db.Find(CoverageParent{}, "SELECT * FROM coverage_parent")
-	}()
+	if err := db.Find(CoverageParent{}, "SELECT * FROM coverage_parent"); !errors.Is(err, ErrMustBeAddr) {
+		t.Fatalf("Find non-pointer error = %v, want ErrMustBeAddr", err)
+	}
 	// Find 覆盖原生 SQL、ID 条件和自定义 where 条件。
 	var rawOne CoverageParent
 	if err := db.Find(&rawOne, "SELECT * FROM coverage_parent WHERE id=?", 1); err != nil {

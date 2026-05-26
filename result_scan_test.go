@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"sync/atomic"
 	"testing"
 )
 
@@ -43,6 +44,9 @@ func (rowsMapStubConn) QueryContext(ctx context.Context, query string, args []dr
 	}
 	if query == "SELECT scan_error FROM stub" {
 		return &rowsMapScanErrStubRows{}, nil
+	}
+	if query == "SELECT tracked_scan_error FROM stub" {
+		return &rowsMapTrackedCloseRows{}, nil
 	}
 	return &rowsMapStubRows{}, nil
 }
@@ -117,6 +121,21 @@ func (r *rowsMapScanErrStubRows) Next(dest []driver.Value) error {
 	}
 	dest[0] = struct{}{}
 	r.done = true
+	return nil
+}
+
+var rowsMapCloseCount atomic.Int32
+
+type rowsMapTrackedCloseRows struct {
+	rowsMapScanErrStubRows
+}
+
+func (rowsMapTrackedCloseRows) Columns() []string {
+	return []string{"bad"}
+}
+
+func (r *rowsMapTrackedCloseRows) Close() error {
+	rowsMapCloseCount.Add(1)
 	return nil
 }
 
@@ -195,6 +214,30 @@ func TestSQLRowsScanErrorBranches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := (&SQLRows{rows: rows}).RowsMap(); len(got) != 0 {
+		t.Fatalf("RowsMap scan error = %#v; want empty", got)
+	}
+
+	rows, err = db.Query("SELECT scan_error FROM stub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := (&SQLRows{rows: rows}).RowsMapInterface(); len(got) != 0 {
+		t.Fatalf("RowsMapInterface scan error = %#v; want empty", got)
+	}
+
+	rows, err = db.Query("SELECT scan_error FROM stub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := (&SQLRows{rows: rows}).RowsMapNull(); len(got) != 0 {
+		t.Fatalf("RowsMapNull scan error = %#v; want empty", got)
+	}
+
+	rows, err = db.Query("SELECT scan_error FROM stub")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cols, data := (&SQLRows{rows: rows}).DoubleSlice(); len(cols) != 0 || len(data) != 0 {
 		t.Fatalf("DoubleSlice scan error = %#v, %#v; want empty", cols, data)
 	}
@@ -209,5 +252,63 @@ func TestSQLRowsScanErrorBranches(t *testing.T) {
 
 	if got := (&SQLRows{err: errors.New("query failed")}).RowsMapNull(); len(got) != 0 {
 		t.Fatalf("RowsMapNull error = %#v, want empty", got)
+	}
+}
+
+func TestSQLRowsCloseOnScanError(t *testing.T) {
+	db, err := sql.Open(rowsMapTestDriverName, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	tests := []struct {
+		name string
+		run  func(*SQLRows)
+	}{
+		{
+			name: "RowsMap",
+			run: func(r *SQLRows) {
+				_ = r.RowsMap()
+			},
+		},
+		{
+			name: "RowsMapInterface",
+			run: func(r *SQLRows) {
+				_ = r.RowsMapInterface()
+			},
+		},
+		{
+			name: "RowsMapNull",
+			run: func(r *SQLRows) {
+				_ = r.RowsMapNull()
+			},
+		},
+		{
+			name: "DoubleSlice",
+			run: func(r *SQLRows) {
+				_, _ = r.DoubleSlice()
+			},
+		},
+		{
+			name: "TripleByte",
+			run: func(r *SQLRows) {
+				_, _ = r.TripleByte()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rowsMapCloseCount.Store(0)
+			rows, err := db.Query("SELECT tracked_scan_error FROM stub")
+			if err != nil {
+				t.Fatal(err)
+			}
+			tt.run(&SQLRows{rows: rows})
+			if got := rowsMapCloseCount.Load(); got != 1 {
+				t.Fatalf("close count = %d, want 1", got)
+			}
+		})
 	}
 }

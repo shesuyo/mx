@@ -220,6 +220,13 @@ func (m *crudSaveModel) AfterUpdate() error {
 	return nil
 }
 
+type crudInt64IDModel struct {
+	ID   int64  `mx:"id"`
+	Name string `mx:"name"`
+}
+
+func (crudInt64IDModel) DBName() string { return "user" }
+
 type crudAfterCreateErrModel struct {
 	ID   int    `mx:"id"`
 	Name string `mx:"name"`
@@ -371,6 +378,13 @@ func TestTableCRUDHelpersWithStub(t *testing.T) {
 	if got, err := table.Update(updateMap); err != nil || got != 2 || updateMap["id"] != 1 {
 		t.Fatalf("Update success = %d, %v, map %#v", got, err, updateMap)
 	}
+	updateByNameMap := map[string]any{"name": "alice", "age": 31}
+	if got, err := table.Update(updateByNameMap, "name"); err != nil || got != 2 {
+		t.Fatalf("Update by name = %d, %v", got, err)
+	}
+	if !reflect.DeepEqual(updateByNameMap, map[string]any{"name": "alice", "age": 31}) {
+		t.Fatalf("Update mutated input map: %#v", updateByNameMap)
+	}
 
 	crudMu.Lock()
 	crudExecErr = errors.New("exec failed")
@@ -460,6 +474,10 @@ func TestTableSaveAndDataBaseStructCRUDWithStub(t *testing.T) {
 	dbModel := crudSaveModel{Name: "db create"}
 	if id, err := db.Create(&dbModel); err != nil || id != 17 || dbModel.ID != 17 {
 		t.Fatalf("DataBase.Create = %d, %#v, %v", id, dbModel, err)
+	}
+	int64IDModel := crudInt64IDModel{Name: "db create int64"}
+	if id, err := db.Create(&int64IDModel); err != nil || id != 17 || int64IDModel.ID != 17 {
+		t.Fatalf("DataBase.Create int64 ID = %d, %#v, %v", id, int64IDModel, err)
 	}
 	if _, err := db.Creates(crudSaveModel{}); !errors.Is(err, ErrMustBeAddr) {
 		t.Fatalf("DataBase.Creates non-pointer error = %v", err)
@@ -582,6 +600,13 @@ func TestSearchResultHelpersWithStub(t *testing.T) {
 
 func TestDataBaseFindErrorAndNoHookSliceBranches(t *testing.T) {
 	db := resetCRUDStubDB(t)
+
+	if err := db.Find(crudSaveModel{}); !errors.Is(err, ErrMustBeAddr) {
+		t.Fatalf("Find non-pointer error = %v, want ErrMustBeAddr", err)
+	}
+	if err := db.Find((*crudSaveModel)(nil)); !errors.Is(err, ErrMustBeAddr) {
+		t.Fatalf("Find nil pointer error = %v, want ErrMustBeAddr", err)
+	}
 
 	crudMu.Lock()
 	crudQueryErr = errors.New("find failed")

@@ -119,6 +119,7 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 	if r.rows == nil {
 		return rs
 	}
+	defer r.rows.Close()
 
 	cols, err := r.rows.Columns()
 	if err != nil {
@@ -134,11 +135,16 @@ func (r *SQLRows) RowsMapInterface() RowsMapInterface {
 
 	for r.rows.Next() {
 		rowMap := make(map[string]any, len(cols))
-		_ = r.rows.Scan(containers...)
+		if err := r.rows.Scan(containers...); err != nil {
+			return RowsMapInterface{}
+		}
 		for i := range cols {
 			rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
 		}
 		rs = append(rs, rowMap)
+	}
+	if err := r.rows.Err(); err != nil {
+		return RowsMapInterface{}
 	}
 	return rs
 }
@@ -1184,7 +1190,11 @@ func (r *SQLRows) RowsMap() RowsMap {
 	if r.rows == nil {
 		return rs
 	}
-	cols, _ := r.rows.Columns()
+	defer r.rows.Close()
+	cols, err := r.rows.Columns()
+	if err != nil {
+		return rs
+	}
 	// 扫描容器只分配一次，后面每行复用，减少小对象申请。
 
 	containers := make([]any, len(cols))
@@ -1194,11 +1204,16 @@ func (r *SQLRows) RowsMap() RowsMap {
 
 	for r.rows.Next() {
 		rowMap := make(RowMap, len(cols))
-		_ = r.rows.Scan(containers...)
+		if err := r.rows.Scan(containers...); err != nil {
+			return RowsMap{}
+		}
 		for i := range cols {
 			rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
 		}
 		rs = append(rs, rowMap)
+	}
+	if err := r.rows.Err(); err != nil {
+		return RowsMap{}
 	}
 	return rs
 }
@@ -1212,7 +1227,11 @@ func (r *SQLRows) RowsMapNull() RowsMapInterface {
 	if r.rows == nil {
 		return rs
 	}
-	cols, _ := r.rows.Columns()
+	defer r.rows.Close()
+	cols, err := r.rows.Columns()
+	if err != nil {
+		return rs
+	}
 	// NullString 也只分配一次，行与行之间仅覆盖值即可。
 
 	containers := make([]any, len(cols))
@@ -1222,7 +1241,9 @@ func (r *SQLRows) RowsMapNull() RowsMapInterface {
 
 	for r.rows.Next() {
 		rowMap := make(map[string]any, len(cols))
-		_ = r.rows.Scan(containers...)
+		if err := r.rows.Scan(containers...); err != nil {
+			return RowsMapInterface{}
+		}
 		for i := range cols {
 			ns := containers[i].(*sql.NullString)
 			if ns.Valid {
@@ -1232,6 +1253,9 @@ func (r *SQLRows) RowsMapNull() RowsMapInterface {
 			}
 		}
 		rs = append(rs, rowMap)
+	}
+	if err := r.rows.Err(); err != nil {
+		return RowsMapInterface{}
 	}
 	return rs
 }
@@ -1279,6 +1303,7 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 	if r.rows == nil {
 		return map[string]int{}, datas
 	}
+	defer r.rows.Close()
 	cols, err := r.rows.Columns()
 	if err != nil {
 		return map[string]int{}, datas
@@ -1291,7 +1316,7 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 	for r.rows.Next() {
 		err := r.rows.Scan(dest...)
 		if err != nil {
-			return map[string]int{}, datas
+			return map[string]int{}, [][]string{}
 		}
 		result := make([]string, len(cols))
 		for i, raw := range rawResult {
@@ -1302,6 +1327,9 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 			}
 		}
 		datas = append(datas, result)
+	}
+	if err := r.rows.Err(); err != nil {
+		return map[string]int{}, [][]string{}
 	}
 	m := make(map[string]int, len(cols))
 	for k, v := range cols {
@@ -1319,6 +1347,7 @@ func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
 	if r.rows == nil {
 		return map[string]int{}, datas
 	}
+	defer r.rows.Close()
 	cols, err := r.rows.Columns()
 	if err != nil {
 		return map[string]int{}, datas
@@ -1331,11 +1360,14 @@ func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
 	for r.rows.Next() {
 		err := r.rows.Scan(dest...)
 		if err != nil {
-			return map[string]int{}, datas
+			return map[string]int{}, [][][]byte{}
 		}
 		result := make([][]byte, len(cols))
 		copy(result, rawResult)
 		datas = append(datas, result)
+	}
+	if err := r.rows.Err(); err != nil {
+		return map[string]int{}, [][][]byte{}
 	}
 	m := make(map[string]int, len(cols))
 	for k, v := range cols {
@@ -1450,12 +1482,15 @@ func (r *SQLRows) Scan(v any) error {
 	if r.err != nil {
 		return r.err
 	}
+	if r.rows == nil {
+		return nil
+	}
+	defer r.rows.Close()
 	if r.rows.Next() {
 		err := r.rows.Scan(v)
-		r.rows.Close()
 		return err
 	}
-	return nil
+	return r.rows.Err()
 }
 
 // SQLResult 是一个封装了sql.Result 的结构体

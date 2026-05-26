@@ -203,7 +203,7 @@ func structToMap(v reflect.Value, table *Table) map[string]any {
 		}
 		refField := v.Field(i)
 		fieldVal := refField.Interface()
-		if tags[i] == "id" && (fieldVal == "" || fieldVal == 0) {
+		if tags[i] == "id" && isReflectZero(refField) {
 			continue
 		}
 		if fieldVal == "" && (table.Columns[tags[i]].DataType == "datetime" || table.Columns[tags[i]].DataType == "date") {
@@ -221,6 +221,13 @@ func structToMap(v reflect.Value, table *Table) map[string]any {
 	}
 
 	return m
+}
+
+func isReflectZero(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	return v.IsZero()
 }
 
 // Placeholder sql占位

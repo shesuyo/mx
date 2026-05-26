@@ -8,6 +8,7 @@ import (
 	"log"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -386,7 +387,7 @@ func (db *DataBase) DB() *sql.DB {
 func (db *DataBase) Create(obj any) (int, error) {
 
 	v := reflect.ValueOf(obj)
-	if v.Kind() != reflect.Pointer {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return 0, ErrMustBeAddr
 	}
 	tableName := getStructDBName(v)
@@ -411,7 +412,9 @@ func (db *DataBase) Create(obj any) (int, error) {
 
 	rID := v.Elem().FieldByName("ID")
 	if rID.IsValid() {
-		rID.SetInt(int64(id))
+		if err := setReflectValue(rID, stringByte(strconv.Itoa(id))); err != nil {
+			return id, err
+		}
 	}
 
 	if err := callFunc(v, AfterCreate); err != nil {
@@ -541,15 +544,15 @@ func (db *DataBase) Find(obj any, args ...any) error {
 		v = reflect.ValueOf(obj)
 
 		tableName = ""
-		elem      = v.Elem()
 		where     = " WHERE 1 "
 
 		rawSqlflag = false
 	)
 
-	if v.Kind() != reflect.Pointer {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return ErrMustBeAddr
 	}
+	elem := v.Elem()
 
 	if len(args) > 0 {
 		if sql, ok := args[0].(string); ok {
