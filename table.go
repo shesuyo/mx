@@ -782,7 +782,7 @@ func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]b
 			if f.Anonymous {
 				embedV := rn.FieldByName(sn)
 				if err := setStruct(embedV, embedV.Type(), cols, data[k]); err != nil {
-					return err
+					return fmt.Errorf("%s: %s", embedV, err.Error())
 				}
 			} else {
 				if dbFieldName == "" {
@@ -798,9 +798,8 @@ func setSlice(v reflect.Value, t reflect.Type, cols map[string]int, data [][][]b
 					}
 				}
 				if dataIdx, ok := cols[dbFieldName]; ok {
-					// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
 					if err := setReflectValue(rn.FieldByName(sn), data[k][dataIdx]); err != nil {
-						return err
+						return fmt.Errorf("%s: %s", dbFieldName, err.Error())
 					}
 				} else {
 					// reflect.Type.Type 是名字 例如 main.Weapon
