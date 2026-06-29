@@ -572,7 +572,7 @@ func (t *Table) InBatch(batchSize int, field string, args ...any) RowsMap {
 	batchRows := make([]RowsMap, batchCount)
 	wg := sync.WaitGroup{}
 	wg.Add(batchCount)
-	for i := 0; i < batchCount; i++ {
+	for i := range batchCount {
 		start := i * batchSize
 		end := min(start+batchSize, len(args))
 		batch := append([]any(nil), args[start:end]...)

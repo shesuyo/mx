@@ -103,11 +103,36 @@ func (r *SQLRows) PluckString(cn string) []string {
 
 // RowMapInterface 返回map[string]interface{} 只有一列
 func (r *SQLRows) RowMapInterface() RowMapInterface {
-	rows := r.RowsMapInterface()
-	if len(rows) >= 1 {
-		return rows[0]
+	rowMap := make(RowMapInterface)
+	if r.err != nil {
+		return rowMap
 	}
-	return make(RowMapInterface)
+	if r.rows == nil {
+		return rowMap
+	}
+	defer r.rows.Close()
+
+	cols, err := r.rows.Columns()
+	if err != nil {
+		return rowMap
+	}
+	containers := make([]any, len(cols))
+	for i := range containers {
+		containers[i] = &sql.RawBytes{}
+	}
+
+	if r.rows.Next() {
+		if err := r.rows.Scan(containers...); err != nil {
+			return make(RowMapInterface)
+		}
+		for i := range cols {
+			rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
+		}
+	}
+	if err := r.rows.Err(); err != nil {
+		return make(RowMapInterface)
+	}
+	return rowMap
 }
 
 // RowsMapInterface 返回[]map[string]interface{}，每个数组对应一列。
@@ -1287,11 +1312,36 @@ func (r *SQLRows) ToStruct(v any) error {
 
 // RowMap RowMap
 func (r *SQLRows) RowMap() RowMap {
-	out := r.RowsMap()
-	if len(out) > 0 {
-		return out[0]
+	rowMap := make(RowMap)
+	if r.err != nil {
+		return rowMap
 	}
-	return map[string]string{}
+	if r.rows == nil {
+		return rowMap
+	}
+	defer r.rows.Close()
+
+	cols, err := r.rows.Columns()
+	if err != nil {
+		return rowMap
+	}
+	containers := make([]any, len(cols))
+	for i := range containers {
+		containers[i] = &sql.RawBytes{}
+	}
+
+	if r.rows.Next() {
+		if err := r.rows.Scan(containers...); err != nil {
+			return RowMap{}
+		}
+		for i := range cols {
+			rowMap[cols[i]] = string(*containers[i].(*sql.RawBytes))
+		}
+	}
+	if err := r.rows.Err(); err != nil {
+		return RowMap{}
+	}
+	return rowMap
 }
 
 // DoubleSlice 用于追求效率和更低的内存，但是使用比较不方便。
