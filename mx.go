@@ -392,7 +392,7 @@ func (db *DataBase) Create(obj any) (int, error) {
 	}
 	tableName := getStructDBName(v)
 
-	if err := callFunc(v, BeforeCreate); err != nil {
+	if err := callModelHook(v, BeforeCreate); err != nil {
 		return 0, err
 	}
 	table := db.Table(tableName)
@@ -417,7 +417,7 @@ func (db *DataBase) Create(obj any) (int, error) {
 		}
 	}
 
-	if err := callFunc(v, AfterCreate); err != nil {
+	if err := callModelHook(v, AfterCreate); err != nil {
 		return id, err
 	}
 	return id, nil
@@ -452,7 +452,7 @@ func (db *DataBase) Delete(obj any) (int, error) {
 	if v.Kind() != reflect.Pointer {
 		return 0, ErrMustBeAddr
 	}
-	if err := callFunc(v, BeforeDelete); err != nil {
+	if err := callModelHook(v, BeforeDelete); err != nil {
 		return 0, err
 	}
 	id := getStructID(v)
@@ -465,7 +465,7 @@ func (db *DataBase) Delete(obj any) (int, error) {
 	if err != nil {
 		return int(count), err
 	}
-	if err := callFunc(v, AfterDelete); err != nil {
+	if err := callModelHook(v, AfterDelete); err != nil {
 		return int(count), err
 	}
 	return int(count), nil
@@ -499,7 +499,7 @@ func (db *DataBase) Update(obj any) error {
 	if v.Kind() != reflect.Pointer {
 		return ErrMustBeAddr
 	}
-	if err := callFunc(v, BeforeUpdate); err != nil {
+	if err := callModelHook(v, BeforeUpdate); err != nil {
 		return err
 	}
 	tableName := getStructDBName(v)
@@ -510,7 +510,7 @@ func (db *DataBase) Update(obj any) error {
 	if err != nil {
 		return err
 	}
-	if err := callFunc(v, AfterUpdate); err != nil {
+	if err := callModelHook(v, AfterUpdate); err != nil {
 		return err
 	}
 	return nil
@@ -612,20 +612,13 @@ func (db *DataBase) Find(obj any, args ...any) error {
 	switch elem.Kind() {
 	case reflect.Slice:
 		for i, num := 0, elem.Len(); i < num; i++ {
-			afterFunc := elem.Index(i).Addr().MethodByName("AfterFind")
-			if !afterFunc.IsValid() {
-				return nil
-			}
-			if err := callHookFunc(afterFunc); err != nil {
+			if err := callModelHook(elem.Index(i).Addr(), AfterFind); err != nil {
 				return err
 			}
 		}
 	case reflect.Struct:
-		afterFunc := v.MethodByName("AfterFind")
-		if afterFunc.IsValid() {
-			if err := callHookFunc(afterFunc); err != nil {
-				return err
-			}
+		if err := callModelHook(v, AfterFind); err != nil {
+			return err
 		}
 	}
 

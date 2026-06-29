@@ -18,9 +18,35 @@ const (
 	IsDeleted = "is_deleted"
 )
 
-type AfterFinder interface {
-	AfterFind() error
-}
+type (
+	BeforeCreator interface {
+		BeforeCreate() error
+	}
+
+	AfterCreator interface {
+		AfterCreate() error
+	}
+
+	BeforeUpdater interface {
+		BeforeUpdate() error
+	}
+
+	AfterUpdater interface {
+		AfterUpdate() error
+	}
+
+	BeforeDeleter interface {
+		BeforeDelete() error
+	}
+
+	AfterDeleter interface {
+		AfterDelete() error
+	}
+
+	AfterFinder interface {
+		AfterFind() error
+	}
+)
 
 // 获取结构体对应的数据库名
 func getStructDBName(v reflect.Value) string {

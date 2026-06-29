@@ -156,7 +156,7 @@ func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 			}
 		}
 		if isCreate {
-			if err := callFunc(v, BeforeCreate); err != nil {
+			if err := callModelHook(v, BeforeCreate); err != nil {
 				return rsp, err
 			}
 			m := structToMap(v, t)
@@ -186,11 +186,11 @@ func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 				}
 			}
 			rsp.ID = id
-			if err := callFunc(v, AfterCreate); err != nil {
+			if err := callModelHook(v, AfterCreate); err != nil {
 				return rsp, err
 			}
 		} else {
-			if err := callFunc(v, BeforeUpdate); err != nil {
+			if err := callModelHook(v, BeforeUpdate); err != nil {
 				return rsp, err
 			}
 			m := structToMap(v, t)
@@ -207,7 +207,7 @@ func (t *Table) Save(obj any, args ...any) (rsp *SaveResp, err error) {
 				return rsp, err
 			}
 			rsp.RowsAffect = ra
-			if err := callFunc(v, AfterUpdate); err != nil {
+			if err := callModelHook(v, AfterUpdate); err != nil {
 				return rsp, err
 			}
 		}
@@ -899,10 +899,8 @@ func (ms *ModelStruct) setSlice(t *Table, cols map[string]int, datas [][][]byte,
 				}
 			}
 		}
-		if method := rnp.MethodByName(AfterFind); method.IsValid() {
-			if err := callHookFunc(method); err != nil {
-				return err
-			}
+		if err := callModelHook(rnp, AfterFind); err != nil {
+			return err
 		}
 		ms.rv.Set(reflect.Append(ms.rv, rn))
 	}

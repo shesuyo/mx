@@ -422,12 +422,65 @@ func Int(v any) int {
 	return i
 }
 
-func callFunc(v reflect.Value, name string) error {
+func callModelHook(v reflect.Value, name string) error {
+	if !v.IsValid() {
+		return nil
+	}
+	callInterface := func(i any) (error, bool) {
+		switch name {
+		case BeforeCreate:
+			if h, ok := i.(BeforeCreator); ok {
+				return h.BeforeCreate(), true
+			}
+		case AfterCreate:
+			if h, ok := i.(AfterCreator); ok {
+				return h.AfterCreate(), true
+			}
+		case BeforeUpdate:
+			if h, ok := i.(BeforeUpdater); ok {
+				return h.BeforeUpdate(), true
+			}
+		case AfterUpdate:
+			if h, ok := i.(AfterUpdater); ok {
+				return h.AfterUpdate(), true
+			}
+		case BeforeDelete:
+			if h, ok := i.(BeforeDeleter); ok {
+				return h.BeforeDelete(), true
+			}
+		case AfterDelete:
+			if h, ok := i.(AfterDeleter); ok {
+				return h.AfterDelete(), true
+			}
+		case AfterFind:
+			if h, ok := i.(AfterFinder); ok {
+				return h.AfterFind(), true
+			}
+		}
+		return nil, false
+	}
+	if v.CanInterface() {
+		if err, ok := callInterface(v.Interface()); ok {
+			return err
+		}
+	}
+	if v.Kind() != reflect.Pointer && v.CanAddr() {
+		addr := v.Addr()
+		if addr.CanInterface() {
+			if err, ok := callInterface(addr.Interface()); ok {
+				return err
+			}
+		}
+	}
 	f := v.MethodByName(name)
 	if f.IsValid() {
 		return callHookFunc(f)
 	}
 	return nil
+}
+
+func callFunc(v reflect.Value, name string) error {
+	return callModelHook(v, name)
 }
 
 func callHookFunc(f reflect.Value) error {

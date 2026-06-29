@@ -7,14 +7,24 @@ import (
 	"testing"
 )
 
-// go test -benchmem -bench "^(BenchmarkReflectFunc)|(BenchmarkAssertionFunc)$"
+// go test -run=^$ -bench "^(BenchmarkReflectFunc|BenchmarkAssertionFunc)$" -benchmem -count=5
 // goos: windows
 // goarch: amd64
 // pkg: github.com/shesuyo/mx
-// Benchmark_ReflectFunc-16         3000000               453 ns/op             208 B/op          7 allocs/op
-// Benchmark_AssertionFunc-16      200000000                6.98 ns/op            0 B/op          0 allocs/op
+// cpu: 13th Gen Intel(R) Core(TM) i7-13700K
+// BenchmarkReflectFunc-24          4350504               281.6 ns/op           136 B/op          5 allocs/op
+// BenchmarkReflectFunc-24          4272934               281.9 ns/op           136 B/op          5 allocs/op
+// BenchmarkReflectFunc-24          4390539               278.7 ns/op           136 B/op          5 allocs/op
+// BenchmarkReflectFunc-24          4406395               275.7 ns/op           136 B/op          5 allocs/op
+// BenchmarkReflectFunc-24          4313017               278.6 ns/op           136 B/op          5 allocs/op
+// BenchmarkAssertionFunc-24     1000000000                 0.8620 ns/op          0 B/op          0 allocs/op
+// BenchmarkAssertionFunc-24     1000000000                 0.8652 ns/op          0 B/op          0 allocs/op
+// BenchmarkAssertionFunc-24     1000000000                 0.8759 ns/op          0 B/op          0 allocs/op
+// BenchmarkAssertionFunc-24     1000000000                 0.8607 ns/op          0 B/op          0 allocs/op
+// BenchmarkAssertionFunc-24     1000000000                 0.8632 ns/op          0 B/op          0 allocs/op
+// avg: reflect 279.3 ns/op, assertion 0.8654 ns/op
 // PASS
-// ok      github.com/shesuyo/mx   3.951s
+// ok      github.com/shesuyo/mx   11.051s
 
 func BenchmarkReflectFunc(b *testing.B) {
 	u := reflect.ValueOf(&User{})
