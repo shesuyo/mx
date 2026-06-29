@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -563,12 +564,29 @@ func (t *Table) In(field string, args ...any) *Table {
 
 // InBatch batch in query
 func (t *Table) InBatch(batchSize int, field string, args ...any) RowsMap {
+	if batchSize <= 0 || len(args) == 0 {
+		return RowsMap{}
+	}
+
+	batchCount := (len(args) + batchSize - 1) / batchSize
+	batchRows := make([]RowsMap, batchCount)
+	wg := sync.WaitGroup{}
+	wg.Add(batchCount)
+	for i := 0; i < batchCount; i++ {
+		start := i * batchSize
+		end := min(start+batchSize, len(args))
+		batch := append([]any(nil), args[start:end]...)
+		table := t.Clone()
+		go func(idx int) {
+			defer wg.Done()
+			batchRows[idx] = table.Search.MustIn(field, batch...).table.RowsMap()
+		}(i)
+	}
+	wg.Wait()
+
 	rs := RowsMap{}
-	for i := 0; i < len(args); i += batchSize {
-		end := min(i+batchSize, len(args))
-		batch := args[i:end]
-		batchRows := t.Clone().Search.MustIn(field, batch...).table.RowsMap()
-		rs = append(rs, batchRows...)
+	for _, rows := range batchRows {
+		rs = append(rs, rows...)
 	}
 	return rs
 }
@@ -901,18 +919,21 @@ func (t *Table) Struct(v any) error {
 	cols, data := t.Query(query, args...).TripleByte()
 	ms, err := NewModelStruct(v)
 	if err != nil {
+		fmt.Println("Struct 报错啦", err)
 		return err
 	}
 	switch ms.rt.Kind() {
 	case reflect.Struct:
 		if len(data) > 0 {
 			if err := ms.SetStruct(t, cols, data[0], false); err != nil {
+				fmt.Println("Struct 报错啦", err)
 				return err
 			}
 		}
 	case reflect.Slice:
 		if len(data) > 0 {
 			if err := ms.setSlice(t, cols, data, false); err != nil {
+				fmt.Println("Struct 报错啦", err)
 				return err
 			}
 		}
@@ -934,18 +955,21 @@ func (t *Table) ToStruct(v any) error {
 	cols, data := t.Query(query, args...).TripleByte()
 	ms, err := NewModelStruct(v)
 	if err != nil {
+		fmt.Println("ToStruct 报错啦", err)
 		return err
 	}
 	switch ms.rt.Kind() {
 	case reflect.Struct:
 		if len(data) > 0 {
 			if err := ms.SetStruct(t, cols, data[0], true); err != nil {
+				fmt.Println("ToStruct 报错啦", err)
 				return err
 			}
 		}
 	case reflect.Slice:
 		if len(data) > 0 {
 			if err := ms.setSlice(t, cols, data, true); err != nil {
+				fmt.Println("ToStruct 报错啦", err)
 				return err
 			}
 		}
