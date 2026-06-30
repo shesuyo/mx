@@ -326,20 +326,20 @@ func (db *DataBase) Query(sql string, args ...any) *SQLRows {
 	st := time.Now()
 	db.LogSQL(sql, args...)
 	rows, err := db.DB().Query(sql, args...)
-	lsd := LogSqlData{
-		Sql:      getFullSQL(sql, args...),
-		Duration: time.Since(st),
-		Callers:  getCallers(),
-		Err:      err,
-		Way:      QueryWay,
-	}
 	if err != nil {
 		db.stack(err, sql, args...)
-		if db.log != nil {
-			db.log.ErrSql(lsd)
-		}
 	}
 	if db.log != nil {
+		lsd := LogSqlData{
+			Sql:      getFullSQL(sql, args...),
+			Duration: time.Since(st),
+			Callers:  getCallers(),
+			Err:      err,
+			Way:      QueryWay,
+		}
+		if err != nil {
+			db.log.ErrSql(lsd)
+		}
 		db.log.LogSql(lsd)
 	}
 	return &SQLRows{rows: rows, err: err, driver: db.Driver}
@@ -350,20 +350,20 @@ func (db *DataBase) Exec(sql string, args ...any) *SQLResult {
 	st := time.Now()
 	db.LogSQL(sql, args...)
 	ret, err := db.DB().Exec(sql, args...)
-	lsd := LogSqlData{
-		Sql:      getFullSQL(sql, args...),
-		Duration: time.Since(st),
-		Callers:  getCallers(),
-		Err:      err,
-		Way:      ExecWay,
-	}
 	if err != nil {
 		db.stack(err, sql, args...)
-		if db.log != nil {
-			db.log.ErrSql(lsd)
-		}
 	}
 	if db.log != nil {
+		lsd := LogSqlData{
+			Sql:      getFullSQL(sql, args...),
+			Duration: time.Since(st),
+			Callers:  getCallers(),
+			Err:      err,
+			Way:      ExecWay,
+		}
+		if err != nil {
+			db.log.ErrSql(lsd)
+		}
 		db.log.LogSql(lsd)
 	}
 	return &SQLResult{result: ret, err: err}
