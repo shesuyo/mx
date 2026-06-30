@@ -1,9 +1,15 @@
 package mx
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
+	"io"
 	"reflect"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -11,6 +17,7 @@ var (
 	benchmarkStringSink string
 	benchmarkBytesSink  []byte
 	benchmarkIntSink    int
+	benchmarkAnySink    any
 )
 
 // go test -run=^$ -bench "^(BenchmarkReflectFunc|BenchmarkAssertionFunc)$" -benchmem -count=5
@@ -159,6 +166,361 @@ func BenchmarkReflectAStruct(b *testing.B) {
 // has one
 // has many
 // many to many
+
+const (
+	queryPathBenchDriverName = "mx_query_path_bench_stub"
+	queryPathBenchTableName  = "query_path_bench"
+	queryPathBenchRowCount   = 128
+)
+
+var (
+	queryPathBenchColumns = []string{
+		"id",
+		"name",
+		"age",
+		"uid",
+		"phone",
+		"amount",
+		"status",
+		"ctime",
+	}
+	queryPathBenchRows [][]driver.Value
+	queryPathBenchOnce sync.Once
+)
+
+func init() {
+	sql.Register(queryPathBenchDriverName, queryPathBenchDriver{})
+}
+
+type queryPathBenchDriver struct{}
+
+func (queryPathBenchDriver) Open(name string) (driver.Conn, error) {
+	return queryPathBenchConn{}, nil
+}
+
+type queryPathBenchConn struct{}
+
+func (queryPathBenchConn) Prepare(query string) (driver.Stmt, error) {
+	return nil, errors.New("not supported")
+}
+
+func (queryPathBenchConn) Close() error { return nil }
+
+func (queryPathBenchConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("not supported")
+}
+
+func (queryPathBenchConn) Ping(ctx context.Context) error { return nil }
+
+func (queryPathBenchConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	queryPathBenchOnce.Do(initQueryPathBenchRows)
+	rows := queryPathBenchRows
+	if strings.Contains(strings.ToLower(query), "limit") && len(rows) > 0 {
+		rows = rows[:1]
+	}
+	return &queryPathBenchRowsStub{
+		cols: queryPathBenchColumns,
+		rows: rows,
+	}, nil
+}
+
+type queryPathBenchRowsStub struct {
+	cols []string
+	rows [][]driver.Value
+	idx  int
+}
+
+func (r *queryPathBenchRowsStub) Columns() []string { return r.cols }
+func (r *queryPathBenchRowsStub) Close() error      { return nil }
+func (r *queryPathBenchRowsStub) Next(dest []driver.Value) error {
+	if r.idx >= len(r.rows) {
+		return io.EOF
+	}
+	copy(dest, r.rows[r.idx])
+	r.idx++
+	return nil
+}
+
+func initQueryPathBenchRows() {
+	queryPathBenchRows = make([][]driver.Value, queryPathBenchRowCount)
+	for i := range queryPathBenchRows {
+		queryPathBenchRows[i] = []driver.Value{
+			[]byte(strconv.Itoa(i + 1)),
+			[]byte("name_" + strconv.Itoa(i+1)),
+			[]byte(strconv.Itoa(20 + i%50)),
+			[]byte(strconv.Itoa(1000 + i)),
+			[]byte("1380000" + strconv.Itoa(1000+i)),
+			[]byte(strconv.FormatFloat(float64(i)*1.25, 'f', 2, 64)),
+			[]byte(strconv.Itoa(i % 3)),
+			[]byte("2026-06-30 12:00:00"),
+		}
+		if i%16 == 0 {
+			queryPathBenchRows[i][4] = nil
+		}
+	}
+}
+
+type queryPathBenchModel struct {
+	ID     int     `json:"id"`
+	Name   string  `json:"name"`
+	Age    int     `json:"age"`
+	UID    int     `json:"uid"`
+	Phone  string  `json:"phone"`
+	Amount float64 `json:"amount"`
+	Status int     `json:"status"`
+	Ctime  string  `json:"ctime"`
+}
+
+func (queryPathBenchModel) DBName() string { return queryPathBenchTableName }
+
+func newQueryPathBenchRawDB(b *testing.B) *sql.DB {
+	b.Helper()
+	raw, err := sql.Open(queryPathBenchDriverName, "")
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() {
+		if err := raw.Close(); err != nil {
+			b.Fatal(err)
+		}
+	})
+	return raw
+}
+
+func newQueryPathBenchDB(b *testing.B) *DataBase {
+	b.Helper()
+	raw := newQueryPathBenchRawDB(b)
+	cols := make(Columns, len(queryPathBenchColumns))
+	for _, col := range queryPathBenchColumns {
+		cols[col] = Column{Name: col}
+	}
+	return &DataBase{
+		Schema: "bench_schema",
+		db:     raw,
+		tableColumns: map[string]Columns{
+			queryPathBenchTableName: cols,
+		},
+		mm: new(sync.RWMutex),
+	}
+}
+
+func newQueryPathBenchRows(b *testing.B, raw *sql.DB, limitOne bool) *SQLRows {
+	b.Helper()
+	query := "SELECT * FROM " + queryPathBenchTableName
+	if limitOne {
+		query += " LIMIT 1"
+	}
+	rows, err := raw.Query(query)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return &SQLRows{rows: rows}
+}
+
+func BenchmarkQueryPathStubRawScan(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		rows, err := raw.Query("SELECT * FROM " + queryPathBenchTableName)
+		if err != nil {
+			b.Fatal(err)
+		}
+		var total int
+		containers := make([]any, len(queryPathBenchColumns))
+		for i := range containers {
+			containers[i] = &sql.RawBytes{}
+		}
+		for rows.Next() {
+			if err := rows.Scan(containers...); err != nil {
+				_ = rows.Close()
+				b.Fatal(err)
+			}
+			for _, container := range containers {
+				total += len(*container.(*sql.RawBytes))
+			}
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			b.Fatal(err)
+		}
+		if err := rows.Close(); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkIntSink = total
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsRowMap(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = newQueryPathBenchRows(b, raw, true).RowMap()
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsRowsMap(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = newQueryPathBenchRows(b, raw, false).RowsMap()
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsRowsMapInterface(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = newQueryPathBenchRows(b, raw, false).RowsMapInterface()
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsRowsMapNull(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = newQueryPathBenchRows(b, raw, false).RowsMapNull()
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsDoubleSlice(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		cols, data := newQueryPathBenchRows(b, raw, false).DoubleSlice()
+		benchmarkIntSink = len(cols) + len(data)
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsTripleByte(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		cols, data := newQueryPathBenchRows(b, raw, false).TripleByte()
+		benchmarkIntSink = len(cols) + len(data)
+	}
+}
+
+func BenchmarkQueryPathStubSQLRowsToStruct(b *testing.B) {
+	raw := newQueryPathBenchRawDB(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		var lis []queryPathBenchModel
+		if err := newQueryPathBenchRows(b, raw, false).ToStruct(&lis); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkIntSink = len(lis)
+	}
+}
+
+func BenchmarkQueryPathStubTableStruct(b *testing.B) {
+	table := newQueryPathBenchDB(b).Table(queryPathBenchTableName)
+	b.ReportAllocs()
+	for b.Loop() {
+		var lis []queryPathBenchModel
+		if err := table.Struct(&lis); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkIntSink = len(lis)
+	}
+}
+
+func BenchmarkIntegrationQueryPathRawScan(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		rows, err := table.DataBase.DB().Query("SELECT * FROM user")
+		if err != nil {
+			b.Fatal(err)
+		}
+		cols, err := rows.Columns()
+		if err != nil {
+			_ = rows.Close()
+			b.Fatal(err)
+		}
+		containers := make([]any, len(cols))
+		for i := range containers {
+			containers[i] = &sql.RawBytes{}
+		}
+		count := 0
+		for rows.Next() {
+			if err := rows.Scan(containers...); err != nil {
+				_ = rows.Close()
+				b.Fatal(err)
+			}
+			count++
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			b.Fatal(err)
+		}
+		if err := rows.Close(); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkIntSink = count
+	}
+}
+
+func BenchmarkIntegrationQueryPathRowMap(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = table.Limit(1).RowMap()
+	}
+}
+
+func BenchmarkIntegrationQueryPathRowsMap(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = table.RowsMap()
+	}
+}
+
+func BenchmarkIntegrationQueryPathRowsMapInterface(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = table.RowsMapInterface()
+	}
+}
+
+func BenchmarkIntegrationQueryPathRowsMapNull(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkAnySink = table.RowsMapNull()
+	}
+}
+
+func BenchmarkIntegrationQueryPathDoubleSlice(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		cols, data := table.DoubleSlice()
+		benchmarkIntSink = len(cols) + len(data)
+	}
+}
+
+func BenchmarkIntegrationQueryPathTripleByte(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		cols, data := table.Query("SELECT * FROM user").TripleByte()
+		benchmarkIntSink = len(cols) + len(data)
+	}
+}
+
+func BenchmarkIntegrationQueryPathStruct(b *testing.B) {
+	table := requireIntegrationUserTable(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		var lis []User
+		if err := table.Struct(&lis); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkIntSink = len(lis)
+	}
+}
 
 func BenchmarkIsSlice(b *testing.B) {
 	args := []any{}

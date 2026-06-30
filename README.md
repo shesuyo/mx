@@ -354,6 +354,26 @@ _ = cols
 _ = data
 ```
 
+`TripleByte` 仅为兼容旧版结构体映射路径保留，不再推荐业务代码直接使用。低分配读取优先使用 `DoubleSlice`，结构体读取使用 `Struct`。
+
+## 性能基准
+
+查询结果转换路径可以用专门的 benchmark 对比。默认命令只跑 stub 驱动，不依赖外部数据库：
+
+```powershell
+go test -run=^$ -bench "BenchmarkQueryPath" -benchmem -count=5
+```
+
+这组基准固定返回 128 行、8 列数据，用来比较手写 `sql.RawBytes` 扫描、`RowMap`、`RowsMap`、`RowsMapInterface`、`RowsMapNull`、`DoubleSlice`、兼容保留的 `TripleByte`、`SQLRows.ToStruct` 和 `Table.Struct` 的转换开销。`ns/op` 看单次查询路径耗时，`B/op` 和 `allocs/op` 看内存分配压力。
+
+真实数据库对照仍然沿用集成测试开关，结果会受到网络、索引、数据量和数据库状态影响：
+
+```powershell
+$env:MX_INTEGRATION='1'
+$env:MX_DSN='user:password@tcp(127.0.0.1:3306)/schema?parseTime=true'
+go test -run=^$ -bench "BenchmarkIntegrationQueryPath" -benchmem -count=5
+```
+
 ## 软删除
 
 如果表中存在 `is_deleted` 字段：

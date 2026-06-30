@@ -1389,6 +1389,10 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 	return m, datas
 }
 
+// TripleByte 返回字段索引和三层 []byte 结果。
+//
+// Deprecated: 该方法主要保留给旧版应用使用。性能不如DoubleSlice。业务侧需要低分配结果时，
+// 请优先使用 DoubleSlice；结构体读取请使用 Table.Struct。
 func (r *SQLRows) TripleByte() (map[string]int, [][][]byte) {
 	cols := make([]string, 0)
 	datas := make([][][]byte, 0)
