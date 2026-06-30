@@ -7,6 +7,12 @@ import (
 	"testing"
 )
 
+var (
+	benchmarkStringSink string
+	benchmarkBytesSink  []byte
+	benchmarkIntSink    int
+)
+
 // go test -run=^$ -bench "^(BenchmarkReflectFunc|BenchmarkAssertionFunc)$" -benchmem -count=5
 // goos: windows
 // goarch: amd64
@@ -158,5 +164,94 @@ func BenchmarkIsSlice(b *testing.B) {
 	args := []any{}
 	for i := 0; i < b.N; i++ {
 		isSlice(args)
+	}
+}
+
+// 运行命令：go test -run=^$ -bench "Benchmark(Unsafe|Safe)(ByteString|StringByte|RowsByteToString)$" -benchmem -count=5
+// 本机环境 windows/amd64、i7-13700K、count=5 的平均结果：
+//
+//	UnsafeByteString        ~0.40 ns/op, 0 B/op, 0 allocs/op
+//	SafeByteString         ~15.57 ns/op, 64 B/op, 1 alloc/op
+//	UnsafeStringByte        ~1.17 ns/op, 0 B/op, 0 allocs/op
+//	SafeStringByte         ~41.20 ns/op, 64 B/op, 1 alloc/op
+//	UnsafeRowsByteToString  ~2.20 us/op, 0 B/op, 0 allocs/op
+//	SafeRowsByteToString   ~36.70 us/op, 16 KB/op, 1024 allocs/op
+func BenchmarkUnsafeByteString(b *testing.B) {
+	raw := []byte("mx benchmark payload for unsafe byte slice to string conversion")
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkStringSink = byteString(raw)
+	}
+}
+
+func BenchmarkSafeByteString(b *testing.B) {
+	raw := []byte("mx benchmark payload for safe byte slice to string conversion")
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkStringSink = string(raw)
+	}
+}
+
+func BenchmarkUnsafeStringByte(b *testing.B) {
+	raw := "mx benchmark payload for unsafe string to byte slice conversion"
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkBytesSink = stringByte(raw)
+	}
+}
+
+func BenchmarkSafeStringByte(b *testing.B) {
+	raw := "mx benchmark payload for safe string to byte slice conversion"
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkBytesSink = []byte(raw)
+	}
+}
+
+func BenchmarkUnsafeRowsByteToString(b *testing.B) {
+	rawRows := make([][][]byte, 128)
+	rows := make([][]string, len(rawRows))
+	for i := range rawRows {
+		rawRows[i] = make([][]byte, 8)
+		rows[i] = make([]string, len(rawRows[i]))
+		for j := range rawRows[i] {
+			rawRows[i][j] = []byte("row_" + strconv.Itoa(i) + "_field_" + strconv.Itoa(j))
+		}
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		total := 0
+		for i, rawRow := range rawRows {
+			for j, raw := range rawRow {
+				rows[i][j] = byteString(raw)
+				total += len(rows[i][j])
+			}
+		}
+		benchmarkIntSink = total
+	}
+}
+
+func BenchmarkSafeRowsByteToString(b *testing.B) {
+	rawRows := make([][][]byte, 128)
+	rows := make([][]string, len(rawRows))
+	for i := range rawRows {
+		rawRows[i] = make([][]byte, 8)
+		rows[i] = make([]string, len(rawRows[i]))
+		for j := range rawRows[i] {
+			rawRows[i][j] = []byte("row_" + strconv.Itoa(i) + "_field_" + strconv.Itoa(j))
+		}
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		total := 0
+		for i, rawRow := range rawRows {
+			for j, raw := range rawRow {
+				rows[i][j] = string(raw)
+				total += len(rows[i][j])
+			}
+		}
+		benchmarkIntSink = total
 	}
 }

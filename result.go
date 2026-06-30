@@ -1373,6 +1373,7 @@ func (r *SQLRows) DoubleSlice() (map[string]int, [][]string) {
 			if raw == nil {
 				result[i] = ""
 			} else {
+				// 零拷贝转换；result[i] 使用期间不能修改 raw。
 				result[i] = *(*string)(unsafe.Pointer(&raw))
 			}
 		}

@@ -340,10 +340,14 @@ func periodParse(st, et string) (string, string, error) {
 	return sp, ep, nil
 }
 
+// byteString 通过复用 b 的底层数组避免分配。
+// 调用方必须保证 b 仍然存活，并且在 string 使用期间不能修改 b。
 func byteString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
+// stringByte 通过复用 s 的底层字节避免分配。
+// 返回的切片必须当作只读数据，绝不能修改。
 func stringByte(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(&s))
 }
