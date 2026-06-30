@@ -48,7 +48,7 @@ type DataBase struct {
 	db             *sql.DB
 	log            Logger
 
-	mm *sync.Mutex // 用于getColumns的写锁
+	mm *sync.RWMutex // 用于tableColumns的读写锁
 }
 
 // NewDataBase 创建一个新的数据库链接
@@ -78,7 +78,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 			tableColumns:   make(map[string]Columns),
 			dataSourceName: dataSourceName,
 			db:             db,
-			mm:             new(sync.Mutex),
+			mm:             new(sync.RWMutex),
 		}
 		return mx, nil
 	}
@@ -96,7 +96,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 			tableColumns:   make(map[string]Columns),
 			dataSourceName: dataSourceName,
 			db:             db,
-			mm:             new(sync.Mutex),
+			mm:             new(sync.RWMutex),
 		}
 		return mx, nil
 	}
@@ -114,7 +114,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 			tableColumns:   make(map[string]Columns),
 			dataSourceName: dataSourceName,
 			db:             db,
-			mm:             new(sync.Mutex),
+			mm:             new(sync.RWMutex),
 		}
 		return mx, nil
 	}
@@ -132,7 +132,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 			tableColumns:   make(map[string]Columns),
 			dataSourceName: dataSourceName,
 			db:             db,
-			mm:             new(sync.Mutex),
+			mm:             new(sync.RWMutex),
 		}
 		return mx, nil
 	}
@@ -150,7 +150,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		tableColumns:   make(map[string]Columns),
 		dataSourceName: dataSourceName,
 		db:             db,
-		mm:             new(sync.Mutex),
+		mm:             new(sync.RWMutex),
 		log:            conf.Log,
 	}
 
@@ -223,13 +223,17 @@ func (db *DataBase) HaveTable(tablename string) bool {
 }
 
 func (db *DataBase) haveTablename(tableName string) bool {
+	db.mm.RLock()
+	defer db.mm.RUnlock()
 	_, ok := db.tableColumns[tableName]
 	return ok
 }
 
 // 获取表中所有列名
 func (db *DataBase) getColumns(tableName string) Columns {
+	db.mm.RLock()
 	names, ok := db.tableColumns[tableName]
+	db.mm.RUnlock()
 	if ok {
 		return names
 	}
@@ -245,6 +249,10 @@ func (db *DataBase) getColumns(tableName string) Columns {
 		}
 	}
 	db.mm.Lock()
+	if names, ok = db.tableColumns[tableName]; ok {
+		db.mm.Unlock()
+		return names
+	}
 	db.tableColumns[tableName] = cols
 	db.mm.Unlock()
 	return cols
@@ -265,7 +273,9 @@ func (db *DataBase) Table(tableName string) *Table {
 		table:     table,
 		tableName: tableName,
 	}
+	db.mm.RLock()
 	table.Columns = db.tableColumns[tableName]
+	db.mm.RUnlock()
 	return table
 }
 
@@ -599,7 +609,10 @@ func (db *DataBase) Find(obj any, args ...any) error {
 			}
 		}
 
-		if db.tableColumns[tableName].HaveColumn(IsDeleted) {
+		db.mm.RLock()
+		cols := db.tableColumns[tableName]
+		db.mm.RUnlock()
+		if cols.HaveColumn(IsDeleted) {
 			where += " AND is_deleted = 0"
 		}
 
@@ -643,7 +656,12 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]any, bool) {
 
 	//fmt.Println(ttn, gtn)
 
-	if db.tableColumns[gtn].HaveColumn(ttn + "_id") {
+	db.mm.RLock()
+	gtnCols := db.tableColumns[gtn]
+	ttnCols := db.tableColumns[ttn]
+	db.mm.RUnlock()
+
+	if gtnCols.HaveColumn(ttn + "_id") {
 		// got: question_option question_id
 		// target: question
 		// select * from question where id = question_option.question_id
@@ -651,7 +669,7 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]any, bool) {
 		return []any{fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE %s = ?", gtn, gtn, "id"), got.FieldByName(ToStructName(ttn + "_id")).Interface()}, true
 	}
 
-	if db.tableColumns[ttn].HaveColumn(gtn + "_id") {
+	if ttnCols.HaveColumn(gtn + "_id") {
 		//got: question
 		//target:question_options
 		//select * from question_options where question.options.question_id = question.id
@@ -674,7 +692,10 @@ func (db *DataBase) connection(target string, got reflect.Value) ([]any, bool) {
 	}
 
 	if ctn != "" {
-		if db.tableColumns[ctn].HaveColumn(gtn+"_id") && db.tableColumns[ctn].HaveColumn(ttn+"_id") {
+		db.mm.RLock()
+		ctnCols := db.tableColumns[ctn]
+		db.mm.RUnlock()
+		if ctnCols.HaveColumn(gtn+"_id") && ctnCols.HaveColumn(ttn+"_id") {
 			//			return db.RowSQL(fmt.Sprintf("SELECT `%s`.* FROM `%s` LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = ?", ttn, ttn, ctn, ctn, ttn+"_id", ttn, "id", ctn, gtn+"_id"),
 			//				got.FieldByName("id").Interface())
 			return []any{fmt.Sprintf("SELECT `%s`.* FROM `%s` LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = ?", ttn, ttn, ctn, ctn, ttn+"_id", ttn, "id", ctn, gtn+"_id"),

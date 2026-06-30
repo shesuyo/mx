@@ -309,7 +309,9 @@ func (t *Table) Delete(m map[string]any) (int, error) {
 		return 0, ErrNoDeleteKey
 	}
 	ks, vs := ksvs(m, " = ? ")
+	t.mm.RLock()
 	cols := t.tableColumns[t.tableName]
+	t.mm.RUnlock()
 	if cols.HaveColumn(IsDeleted) {
 		setParts := []string{"is_deleted = '1'"}
 		if cols.HaveColumn("deleted_at") {
@@ -402,7 +404,10 @@ func (t *Table) Read(m map[string]any) RowMap {
 
 // Reads 查找多条数据
 func (t *Table) Reads(m map[string]any) RowsMap {
-	if t.tableColumns[t.tableName].HaveColumn(IsDeleted) {
+	t.mm.RLock()
+	cols := t.tableColumns[t.tableName]
+	t.mm.RUnlock()
+	if cols.HaveColumn(IsDeleted) {
 		m[IsDeleted] = 0
 	}
 	//SELECT * FROM address WHERE id = 1 AND uid = 27

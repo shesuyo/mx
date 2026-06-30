@@ -183,7 +183,7 @@ func resetCRUDStubDB(t *testing.T) *DataBase {
 		tableColumns: map[string]Columns{
 			"user": userCols,
 		},
-		mm: new(sync.Mutex),
+		mm: new(sync.RWMutex),
 	}
 }
 

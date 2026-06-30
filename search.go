@@ -187,13 +187,17 @@ func (s *Search) Joins(tablename string, condition ...string) *Search {
 	if len(condition) == 1 {
 		s.joinConditions = append(s.joinConditions, JoinCon{TableName: tablename, Condition: condition[0]})
 	} else {
-		if s.table.tableColumns[tablename].HaveColumn(s.tableName + "id") {
+		s.table.mm.RLock()
+		joinCols := s.table.tableColumns[tablename]
+		mainCols := s.table.tableColumns[s.tableName]
+		s.table.mm.RUnlock()
+		if joinCols.HaveColumn(s.tableName + "id") {
 			s.joinConditions = append(s.joinConditions, JoinCon{TableName: tablename, Condition: fmt.Sprintf("%s.%s = %s.id", tablename, s.tableName+"id", s.tableName)})
-		} else if s.table.tableColumns[tablename].HaveColumn(s.tableName + "_id") {
+		} else if joinCols.HaveColumn(s.tableName + "_id") {
 			s.joinConditions = append(s.joinConditions, JoinCon{TableName: tablename, Condition: fmt.Sprintf("%s.%s = %s.id", tablename, s.tableName+"_id", s.tableName)})
-		} else if s.table.tableColumns[s.tableName].HaveColumn(tablename + "id") {
+		} else if mainCols.HaveColumn(tablename + "id") {
 			s.joinConditions = append(s.joinConditions, JoinCon{TableName: tablename, Condition: fmt.Sprintf("%s.%s = %s.id", s.tableName, tablename+"id", tablename)})
-		} else if s.table.tableColumns[s.tableName].HaveColumn(tablename + "_id") {
+		} else if mainCols.HaveColumn(tablename + "_id") {
 			s.joinConditions = append(s.joinConditions, JoinCon{TableName: tablename, Condition: fmt.Sprintf("%s.%s = %s.id", s.tableName, tablename+"_id", tablename)})
 		}
 	}
@@ -269,7 +273,10 @@ func (s *Search) Parse() (string, []any) {
 	)
 	fieldList := append([]string(nil), s.fields...)
 	whereConditions := append([]WhereCon(nil), s.whereConditions...)
-	if s.table.tableColumns[s.tableName].HaveColumn(IsDeleted) {
+	s.table.mm.RLock()
+	cols := s.table.tableColumns[s.tableName]
+	s.table.mm.RUnlock()
+	if cols.HaveColumn(IsDeleted) {
 		// 这里用局部副本拼接条件，避免 Parse 被多次调用时反复污染原始 Search 状态。
 
 		whereConditions = append(whereConditions, WhereCon{Query: s.table.Name() + ".is_deleted = ?", Args: []any{0}})

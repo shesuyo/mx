@@ -678,7 +678,7 @@ func TestDatabaseMetadataAndInitErrorBranches(t *testing.T) {
 	}
 
 	// 未命中缓存时，getColumns 会查询 information_schema 并写回缓存。
-	db := &DataBase{db: raw, tableColumns: map[string]Columns{}, mm: new(sync.Mutex)}
+	db := &DataBase{db: raw, tableColumns: map[string]Columns{}, mm: new(sync.RWMutex)}
 	cols := db.getColumns("user")
 	if !cols.HaveColumn("id") || !cols.HaveColumn("name") {
 		t.Fatalf("getColumns uncached = %#v", cols)

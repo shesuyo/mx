@@ -22,6 +22,7 @@ func newUnitTable(tableName string, columns ...string) *Table {
 		tableColumns: map[string]Columns{
 			tableName: cols,
 		},
+		mm: new(sync.RWMutex),
 	}
 	table := &Table{
 		DataBase:  db,
@@ -227,7 +228,7 @@ func newUnitDB(tables map[string][]string) *DataBase {
 	return &DataBase{
 		Schema:       "test_schema",
 		tableColumns: tableColumns,
-		mm:           new(sync.Mutex),
+		mm:           new(sync.RWMutex),
 	}
 }
 
