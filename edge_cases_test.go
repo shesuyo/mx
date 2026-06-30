@@ -39,8 +39,12 @@ func (edgeSlowPingConn) Begin() (driver.Tx, error) {
 }
 
 func (edgeSlowPingConn) Ping(ctx context.Context) error {
-	time.Sleep(25 * time.Millisecond)
-	return nil
+	select {
+	case <-time.After(25 * time.Millisecond):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 type edgeSaveHookModel struct {
@@ -570,7 +574,7 @@ func TestExtraSQLRowsScanAndFindEdges(t *testing.T) {
 		t.Fatalf("Scan empty target = %q, want keep", target)
 	}
 
-	rows, err = db.Query("SELECT * FROM stub")
+	rows, err = db.Query("SELECT single FROM stub")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,8 +582,8 @@ func TestExtraSQLRowsScanAndFindEdges(t *testing.T) {
 	if err := (&SQLRows{rows: rows}).Find(&foundFloat); err != nil {
 		t.Fatalf("Find float error = %v", err)
 	}
-	if foundFloat != 0 {
-		t.Fatalf("Find float = %v, want 0 because first map value is not guaranteed numeric", foundFloat)
+	if foundFloat != 7 {
+		t.Fatalf("Find float = %v, want 7", foundFloat)
 	}
 
 	// ToStruct/Find 对非指针输入当前会 panic，这里锁定现有行为。
