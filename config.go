@@ -55,5 +55,13 @@ type LogSqlCaller struct {
 type LogSqlCallers []LogSqlCaller
 
 func (config *Config) parse() {
-
+	if config.MaxIdleConns == 0 {
+		config.MaxIdleConns = DefaultConfig.MaxIdleConns
+	}
+	if config.MaxOpenConns == 0 {
+		config.MaxOpenConns = DefaultConfig.MaxOpenConns
+	}
+	if config.Timeout == 0 {
+		config.Timeout = DefaultConfig.Timeout
+	}
 }
