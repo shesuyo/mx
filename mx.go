@@ -123,7 +123,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = checkDBInit(db, conf); err != nil {
+		if err = checkDBInitContext(db, conf); err != nil {
 			return nil, err
 		}
 		mx := &DataBase{
@@ -179,22 +179,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 }
 
 func checkDBInit(db *sql.DB, conf Config) error {
-	pingErr := make(chan error)
-	go func(pingErr chan error) {
-		err := db.Ping()
-		pingErr <- err
-	}(pingErr)
-	select {
-	case err := <-pingErr:
-		if err != nil {
-			return err
-		}
-	case <-time.After(conf.Timeout):
-		return errors.New("连接超时")
-	}
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	return nil
+	return checkDBInitContext(db, conf)
 }
 
 func checkDBInitContext(db *sql.DB, conf Config) error {
