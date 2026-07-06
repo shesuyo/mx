@@ -917,31 +917,139 @@ func (t *Table) Struct(v any) error {
 	if t.Search.noNeedQuery {
 		return nil
 	}
-	s := t.Search.Clone()
-	query, args := s.Parse()
-	cols, data := t.Query(query, args...).TripleByte()
 	ms, err := NewModelStruct(v)
 	if err != nil {
 		fmt.Println("Struct 报错啦", err)
 		return err
 	}
+	s := t.Search.Clone()
+	query, args := s.Parse()
+	if err := t.structStream(ms, query, args...); err != nil {
+		fmt.Println("Struct 报错啦", err)
+		return err
+	}
+	return nil
+}
+
+type structFieldPlan struct {
+	fieldIndex []int
+	colIndex   int
+}
+
+func (t *Table) structStream(ms *ModelStruct, query string, args ...any) error {
+	switch ms.rt.Kind() {
+	case reflect.Struct, reflect.Slice:
+	default:
+		return errors.New("Unsupport Type " + ms.rt.Kind().String())
+	}
+
+	sr := t.Query(query, args...)
+	if sr.err != nil {
+		return sr.err
+	}
+	if sr.rows == nil {
+		return nil
+	}
+	defer sr.rows.Close()
+
+	cols, err := sr.rows.Columns()
+	if err != nil {
+		return err
+	}
+	colIndex := make(map[string]int, len(cols))
+	for i, col := range cols {
+		colIndex[col] = i
+	}
+
+	elemType := ms.rt
+	if ms.rt.Kind() == reflect.Slice {
+		elemType = ms.rt.Elem()
+	}
+	plan := buildStructFieldPlan(elemType, colIndex)
+	rawResult := make([][]byte, len(cols))
+	dest := make([]any, len(cols))
+	for i := range rawResult {
+		dest[i] = &rawResult[i]
+	}
+
 	switch ms.rt.Kind() {
 	case reflect.Struct:
-		if len(data) > 0 {
-			if err := ms.SetStruct(t, cols, data[0], false); err != nil {
-				fmt.Println("Struct 报错啦", err)
+		if sr.rows.Next() {
+			if err := sr.rows.Scan(dest...); err != nil {
 				return err
+			}
+			if err := setStructWithPlan(ms.rv, plan, rawResult); err != nil {
+				return err
+			}
+			if af, ok := ms.v.(AfterFinder); ok {
+				if err := af.AfterFind(); err != nil {
+					return err
+				}
 			}
 		}
 	case reflect.Slice:
-		if len(data) > 0 {
-			if err := ms.setSlice(t, cols, data, false); err != nil {
-				fmt.Println("Struct 报错啦", err)
+		for sr.rows.Next() {
+			elem := reflect.New(elemType)
+			if err := sr.rows.Scan(dest...); err != nil {
 				return err
 			}
+			if err := setStructWithPlan(elem.Elem(), plan, rawResult); err != nil {
+				return err
+			}
+			if err := callModelHook(elem, AfterFind); err != nil {
+				return err
+			}
+			ms.rv.Set(reflect.Append(ms.rv, elem.Elem()))
 		}
-	default:
-		return errors.New("Unsupport Type " + ms.rt.Kind().String())
+	}
+	return sr.rows.Err()
+}
+
+func buildStructFieldPlan(rt reflect.Type, cols map[string]int) []structFieldPlan {
+	plans := make([]structFieldPlan, 0, rt.NumField())
+	appendStructFieldPlan(&plans, rt, nil, cols)
+	return plans
+}
+
+func appendStructFieldPlan(plans *[]structFieldPlan, rt reflect.Type, parent []int, cols map[string]int) {
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		if field.PkgPath != "" && !field.Anonymous {
+			continue
+		}
+		if field.Tag.Get("mx") == "-" {
+			continue
+		}
+		fieldIndex := append(append([]int(nil), parent...), field.Index...)
+		if field.Anonymous {
+			appendStructFieldPlan(plans, field.Type, fieldIndex, cols)
+			continue
+		}
+		dbFieldName := structFieldDBName(field)
+		if colIdx, ok := cols[dbFieldName]; ok {
+			*plans = append(*plans, structFieldPlan{fieldIndex: fieldIndex, colIndex: colIdx})
+		}
+	}
+}
+
+func structFieldDBName(field reflect.StructField) string {
+	if tagMx := field.Tag.Get("mx"); tagMx != "" {
+		return tagMx
+	}
+	if tagJSON := field.Tag.Get("json"); tagJSON != "" {
+		if strings.Contains(tagJSON, ",") {
+			return strings.Split(tagJSON, ",")[0]
+		}
+		return tagJSON
+	}
+	return toDBName(field.Name)
+}
+
+func setStructWithPlan(v reflect.Value, plan []structFieldPlan, data [][]byte) error {
+	for _, item := range plan {
+		if err := setReflectValue(v.FieldByIndex(item.fieldIndex), data[item.colIndex]); err != nil {
+			return err
+		}
 	}
 	return nil
 }

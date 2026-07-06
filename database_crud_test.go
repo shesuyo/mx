@@ -681,6 +681,14 @@ func TestModelStructSetStructAndTableStructWithStub(t *testing.T) {
 		t.Fatalf("Table.Struct() model = %#v", tableModel)
 	}
 
+	var tableStructModels []afterFindModel
+	if err := table.Where("age > ?", 20).Struct(&tableStructModels); err != nil {
+		t.Fatalf("Table.Struct slice error = %v", err)
+	}
+	if len(tableStructModels) != 2 || tableStructModels[0].Name != "alice" || tableStructModels[0].Calls != 1 || tableStructModels[1].Calls != 1 {
+		t.Fatalf("Table.Struct slice = %#v", tableStructModels)
+	}
+
 	var tableModels []afterFindModel
 	if err := table.Where("age > ?", 20).ToStruct(&tableModels); err != nil {
 		t.Fatalf("Table.ToStruct slice error = %v", err)
@@ -698,6 +706,10 @@ func TestModelStructSetStructAndTableStructWithStub(t *testing.T) {
 	var errModel afterFindErrModel
 	if err := table.WhereID(1).Struct(&errModel); !errors.Is(err, edgeHookErr) {
 		t.Fatalf("Table.Struct AfterFind error = %v, want %v", err, edgeHookErr)
+	}
+	var errStructModels []afterFindErrModel
+	if err := table.Where("age > ?", 20).Struct(&errStructModels); !errors.Is(err, edgeHookErr) {
+		t.Fatalf("Table.Struct slice AfterFind error = %v, want %v", err, edgeHookErr)
 	}
 	var errModels []afterFindErrModel
 	if err := table.Where("age > ?", 20).ToStruct(&errModels); !errors.Is(err, edgeHookErr) {
