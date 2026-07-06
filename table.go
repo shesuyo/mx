@@ -934,6 +934,35 @@ func (t *Table) Struct(v any) error {
 type structFieldPlan struct {
 	fieldIndex []int
 	colIndex   int
+	fieldName  string
+	columnName string
+}
+
+type structParseError struct {
+	fieldName  string
+	columnName string
+	value      []byte
+	err        error
+}
+
+func (e *structParseError) Error() string {
+	return fmt.Sprintf("%s(%s=%q): %v", e.fieldName, e.columnName, String(e.value), e.err)
+}
+
+func (e *structParseError) Unwrap() error {
+	return e.err
+}
+
+type structParseErrors []*structParseError
+
+func (errs structParseErrors) Error() string {
+	if len(errs) == 0 {
+		return ""
+	}
+	if len(errs) == 1 {
+		return errs[0].Error()
+	}
+	return fmt.Sprintf("%s and %d more errors", errs[0].Error(), len(errs)-1)
 }
 
 func (t *Table) structStream(ms *ModelStruct, query string, args ...any) error {
@@ -979,7 +1008,13 @@ func (t *Table) structStream(ms *ModelStruct, query string, args ...any) error {
 				return err
 			}
 			if err := setStructWithPlan(ms.rv, plan, rawResult); err != nil {
-				return err
+				if parseErrs, ok := err.(structParseErrors); ok {
+					for _, parseErr := range parseErrs {
+						logStructParseError("Struct", elemType, parseErr)
+					}
+				} else {
+					return err
+				}
 			}
 			if af, ok := ms.v.(AfterFinder); ok {
 				if err := af.AfterFind(); err != nil {
@@ -994,7 +1029,13 @@ func (t *Table) structStream(ms *ModelStruct, query string, args ...any) error {
 				return err
 			}
 			if err := setStructWithPlan(elem.Elem(), plan, rawResult); err != nil {
-				return err
+				if parseErrs, ok := err.(structParseErrors); ok {
+					for _, parseErr := range parseErrs {
+						logStructParseError("Struct", elemType, parseErr)
+					}
+				} else {
+					return err
+				}
 			}
 			if err := callModelHook(elem, AfterFind); err != nil {
 				return err
@@ -1027,7 +1068,12 @@ func appendStructFieldPlan(plans *[]structFieldPlan, rt reflect.Type, parent []i
 		}
 		dbFieldName := structFieldDBName(field)
 		if colIdx, ok := cols[dbFieldName]; ok {
-			*plans = append(*plans, structFieldPlan{fieldIndex: fieldIndex, colIndex: colIdx})
+			*plans = append(*plans, structFieldPlan{
+				fieldIndex: fieldIndex,
+				colIndex:   colIdx,
+				fieldName:  field.Name,
+				columnName: dbFieldName,
+			})
 		}
 	}
 }
@@ -1046,12 +1092,30 @@ func structFieldDBName(field reflect.StructField) string {
 }
 
 func setStructWithPlan(v reflect.Value, plan []structFieldPlan, data [][]byte) error {
+	errs := structParseErrors{}
 	for _, item := range plan {
 		if err := setReflectValue(v.FieldByIndex(item.fieldIndex), data[item.colIndex]); err != nil {
-			return err
+			errs = append(errs, &structParseError{
+				fieldName:  item.fieldName,
+				columnName: item.columnName,
+				value:      data[item.colIndex],
+				err:        err,
+			})
 		}
 	}
+	if len(errs) > 0 {
+		return errs
+	}
 	return nil
+}
+
+func logStructParseError(method string, rt reflect.Type, err *structParseError) {
+	mxlog(fmt.Sprintf("%s 解析结构体失败: struct=%s field=%s err=%v",
+		method,
+		rt.String(),
+		err.fieldName,
+		err.err,
+	))
 }
 
 // Deprecated: 请将逻辑替换成Struct
@@ -1063,7 +1127,11 @@ func (t *Table) ToStruct(v any) error {
 	}
 	s := t.Search.Clone()
 	query, args := s.Parse()
-	cols, data := t.Query(query, args...).TripleByte()
+	rows := t.Query(query, args...)
+	if rows.err != nil {
+		return rows.err
+	}
+	cols, data := rows.TripleByte()
 	ms, err := NewModelStruct(v)
 	if err != nil {
 		fmt.Println("ToStruct 报错啦", err)
@@ -1073,16 +1141,36 @@ func (t *Table) ToStruct(v any) error {
 	case reflect.Struct:
 		if len(data) > 0 {
 			if err := ms.SetStruct(t, cols, data[0], true); err != nil {
-				fmt.Println("ToStruct 报错啦", err)
-				return err
+				if parseErrs, ok := err.(structParseErrors); ok {
+					for _, parseErr := range parseErrs {
+						logStructParseError("ToStruct", ms.rt, parseErr)
+					}
+				} else {
+					fmt.Println("ToStruct 报错啦", err)
+					return err
+				}
 			}
 		}
 	case reflect.Slice:
-		if len(data) > 0 {
-			if err := ms.setSlice(t, cols, data, true); err != nil {
+		elemType := ms.rt.Elem()
+		for _, item := range data {
+			elem := reflect.New(elemType)
+			elemMS, err := NewModelStruct(elem.Interface())
+			if err != nil {
 				fmt.Println("ToStruct 报错啦", err)
 				return err
 			}
+			if err := elemMS.SetStruct(t, cols, item, true); err != nil {
+				if parseErrs, ok := err.(structParseErrors); ok {
+					for _, parseErr := range parseErrs {
+						logStructParseError("ToStruct", elemType, parseErr)
+					}
+				} else {
+					fmt.Println("ToStruct 报错啦", err)
+					return err
+				}
+			}
+			ms.rv.Set(reflect.Append(ms.rv, elem.Elem()))
 		}
 	default:
 		return errors.New("Unsupport Type " + ms.rt.Kind().String())
@@ -1114,6 +1202,7 @@ func NewModelStruct(v any) (*ModelStruct, error) {
 }
 
 func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, guess bool) error {
+	errs := structParseErrors{}
 	numField := ms.rt.NumField()
 	for i := range numField {
 		// mx json toDBName(fieldName)
@@ -1141,13 +1230,18 @@ func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, g
 		if f.Anonymous {
 			embedV := ms.rv.FieldByName(sn)
 			if err := setStruct(embedV, embedV.Type(), cols, data); err != nil {
-				return err
+				errs = append(errs, &structParseError{fieldName: sn, columnName: dbFieldName, err: err})
 			}
 		} else {
 			if dataIdx, ok := cols[dbFieldName]; ok {
 				// fmt.Println("SET:", sn, dbFieldName, string(data[cols[dbFieldName]]))
 				if err := setReflectValue(ms.rv.FieldByName(sn), data[dataIdx]); err != nil {
-					return err
+					errs = append(errs, &structParseError{
+						fieldName:  sn,
+						columnName: dbFieldName,
+						value:      data[dataIdx],
+						err:        err,
+					})
 				}
 			} else if guess {
 				// reflect.Type.Type 是名字 例如 main.Weapon
@@ -1186,6 +1280,9 @@ func (ms *ModelStruct) SetStruct(t *Table, cols map[string]int, data [][]byte, g
 		if err := af.AfterFind(); err != nil {
 			return err
 		}
+	}
+	if len(errs) > 0 {
+		return errs
 	}
 	return nil
 }

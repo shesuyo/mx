@@ -1,11 +1,13 @@
 package mx
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
 	"errors"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -94,6 +96,21 @@ func (crudConn) QueryContext(ctx context.Context, query string, args []driver.Na
 		return crudRowsFor([]string{"total"}, []driver.Value{[]byte(count)}), nil
 	case strings.Contains(lower, "from empty"), strings.Contains(lower, "from `empty`"):
 		return crudRowsFromValues([]string{"id", "name"}, nil), nil
+	case strings.Contains(lower, "from `bad_user`"):
+		if strings.Contains(lower, "id = ?") {
+			return crudRowsFromValues(
+				[]string{"id", "name", "age", "status"},
+				[][]driver.Value{{[]byte("2"), []byte("bad"), []byte("not-int"), []byte("enabled")}},
+			), nil
+		}
+		return crudRowsFromValues(
+			[]string{"id", "name", "age", "status"},
+			[][]driver.Value{
+				{[]byte("1"), []byte("alice"), []byte("30"), []byte("ok")},
+				{[]byte("2"), []byte("bad"), []byte("not-int"), []byte("enabled")},
+				{[]byte("3"), []byte("carol"), []byte("40"), []byte("ok")},
+			},
+		), nil
 	default:
 		return crudUserRows(), nil
 	}
@@ -171,6 +188,7 @@ func resetCRUDStubDB(t *testing.T) *DataBase {
 		"id":         {Name: "id"},
 		"name":       {Name: "name"},
 		"age":        {Name: "age"},
+		"status":     {Name: "status"},
 		"active":     {Name: "active"},
 		"amount":     {Name: "amount"},
 		"created_at": {Name: "created_at", DataType: "datetime"},
@@ -181,10 +199,37 @@ func resetCRUDStubDB(t *testing.T) *DataBase {
 		Schema: "unit_schema",
 		db:     raw,
 		tableColumns: map[string]Columns{
-			"user": userCols,
+			"user":     userCols,
+			"bad_user": userCols,
 		},
 		mm: new(sync.RWMutex),
 	}
+}
+
+func captureStdout(t *testing.T, f func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+	}()
+
+	f()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	buf := bytes.Buffer{}
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
 }
 
 type crudSaveModel struct {
@@ -722,5 +767,82 @@ func TestModelStructSetStructAndTableStructWithStub(t *testing.T) {
 	}
 	if err := noQuery.ToStruct(&tableModel); err != nil {
 		t.Fatalf("ToStruct noNeedQuery error = %v", err)
+	}
+}
+
+type badUserModel struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Age    int    `json:"age"`
+	Status string `json:"status"`
+}
+
+func TestTableStructAndToStructContinueOnParseError(t *testing.T) {
+	db := resetCRUDStubDB(t)
+	table := db.Table("bad_user")
+
+	var structRows []badUserModel
+	structOutput := captureStdout(t, func() {
+		if err := table.Where("id > ?", 0).Struct(&structRows); err != nil {
+			t.Fatalf("Table.Struct parse error = %v", err)
+		}
+	})
+	if len(structRows) != 3 || structRows[1].Name != "bad" || structRows[1].Age != 0 || structRows[1].Status != "enabled" {
+		t.Fatalf("Table.Struct rows = %#v", structRows)
+	}
+	for _, want := range []string{"Struct 解析结构体失败", "struct=mx.badUserModel", "field=Age", "strconv.ParseInt", "not-int"} {
+		if !strings.Contains(structOutput, want) {
+			t.Fatalf("Struct output %q missing %q", structOutput, want)
+		}
+	}
+
+	var toStructRows []badUserModel
+	toStructOutput := captureStdout(t, func() {
+		if err := table.Where("id > ?", 0).ToStruct(&toStructRows); err != nil {
+			t.Fatalf("Table.ToStruct parse error = %v", err)
+		}
+	})
+	if len(toStructRows) != 3 || toStructRows[1].Name != "bad" || toStructRows[1].Age != 0 || toStructRows[1].Status != "enabled" {
+		t.Fatalf("Table.ToStruct rows = %#v", toStructRows)
+	}
+	for _, want := range []string{"ToStruct 解析结构体失败", "struct=mx.badUserModel", "field=Age", "strconv.ParseInt", "not-int"} {
+		if !strings.Contains(toStructOutput, want) {
+			t.Fatalf("ToStruct output %q missing %q", toStructOutput, want)
+		}
+	}
+}
+
+func TestTableStructAndToStructSingleParseErrorOutput(t *testing.T) {
+	db := resetCRUDStubDB(t)
+	table := db.Table("bad_user").Fields("id", "name", "age", "status").Where("id = ?", 2)
+
+	var structRow badUserModel
+	structOutput := captureStdout(t, func() {
+		if err := table.Struct(&structRow); err != nil {
+			t.Fatalf("Table.Struct single parse error = %v", err)
+		}
+	})
+	if structRow.ID != 2 || structRow.Name != "bad" || structRow.Age != 0 || structRow.Status != "enabled" {
+		t.Fatalf("Table.Struct single row = %#v", structRow)
+	}
+	for _, want := range []string{"Struct 解析结构体失败", "struct=mx.badUserModel", "field=Age", "strconv.ParseInt", "not-int"} {
+		if !strings.Contains(structOutput, want) {
+			t.Fatalf("Struct single output %q missing %q", structOutput, want)
+		}
+	}
+
+	var toStructRow badUserModel
+	toStructOutput := captureStdout(t, func() {
+		if err := table.ToStruct(&toStructRow); err != nil {
+			t.Fatalf("Table.ToStruct single parse error = %v", err)
+		}
+	})
+	if toStructRow.ID != 2 || toStructRow.Name != "bad" || toStructRow.Age != 0 || toStructRow.Status != "enabled" {
+		t.Fatalf("Table.ToStruct single row = %#v", toStructRow)
+	}
+	for _, want := range []string{"ToStruct 解析结构体失败", "struct=mx.badUserModel", "field=Age", "strconv.ParseInt", "not-int"} {
+		if !strings.Contains(toStructOutput, want) {
+			t.Fatalf("ToStruct single output %q missing %q", toStructOutput, want)
+		}
 	}
 }
