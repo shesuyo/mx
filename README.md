@@ -12,8 +12,7 @@
 - 结构体 CRUD：`Create`、`Update`、`Delete`、`Save`、`Struct`
 - 查询结果支持 `RowsMap`、`RowMap`、`RowsMapInterface`、`RowsMapNull`、结构体扫描
 - 支持 `BeforeCreate`、`AfterCreate`、`BeforeUpdate`、`AfterUpdate`、`BeforeDelete`、`AfterDelete`、`AfterFind` 钩子
-- 自动读取 MySQL `information_schema.COLUMNS`，用于字段识别、软删除识别、结构体映射和自动 JOIN
-- 表存在 `is_deleted` 字段时，查询自动追加 `is_deleted = 0`，删除会转为软删除
+- 自动读取 MySQL `information_schema.COLUMNS`，用于字段识别、结构体映射和自动 JOIN
 
 ## 安装
 
@@ -374,20 +373,16 @@ $env:MX_DSN='user:password@tcp(127.0.0.1:3306)/schema?parseTime=true'
 go test -run=^$ -bench "BenchmarkIntegrationQueryPath" -benchmem -count=5
 ```
 
-## 软删除
+## 删除语义
 
-如果表中存在 `is_deleted` 字段：
+`Table.Delete`、`Table.DeleteID`、`Table.DeleteIDs` 和结构体删除始终执行物理删除。`is_deleted` 只被视为普通字段，mx 不会自动追加查询条件，也不会在删除时自动更新它或 `deleted_at`。
 
-- 查询构造器会自动追加 `is_deleted = 0`
-- `Table.Delete` 会执行 `UPDATE table SET is_deleted = '1', deleted_at = ...`
-- `Reads` 会向传入的条件 map 中追加 `is_deleted: 0`
-
-因此有软删除字段的表，删除不是物理删除。
+业务需要软删除时，应由调用方显式添加 `is_deleted = 0` 查询条件，并使用 `Update` 写入删除状态和删除时间。
 
 ## 注意事项
 
 - `Table.Update` 默认使用 `id` 作为条件，并且总是追加 `LIMIT 1`
-- `Table.Delete` 不会自动追加 `LIMIT 1`，会删除或软删除所有匹配条件的数据
+- `Table.Delete` 不会自动追加 `LIMIT 1`，会物理删除所有匹配条件的数据
 - `Table.Delete(map[string]any{})` 会返回 `ErrNoDeleteKey`
 - `In` / `NotIn` 传入空数组时不会追加条件；空数组应返回空结果时请使用 `MustIn`
 - 结构体 CRUD 和结构体扫描必须传指针，例如 `db.Create(&u)`、`table.Struct(&users)`

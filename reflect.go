@@ -14,8 +14,6 @@ const (
 	AfterUpdate  = "AfterUpdate"
 	BeforeDelete = "BeforeDelete"
 	AfterDelete  = "AfterDelete"
-
-	IsDeleted = "is_deleted"
 )
 
 type (

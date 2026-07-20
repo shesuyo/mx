@@ -192,7 +192,7 @@ func resetCRUDStubDB(t *testing.T) *DataBase {
 		"active":     {Name: "active"},
 		"amount":     {Name: "amount"},
 		"created_at": {Name: "created_at", DataType: "datetime"},
-		IsDeleted:    {Name: IsDeleted},
+		"is_deleted": {Name: "is_deleted"},
 		"deleted_at": {Name: "deleted_at", DataType: "datetime"},
 	}
 	return &DataBase{
@@ -456,8 +456,14 @@ func TestTableCRUDHelpersWithStub(t *testing.T) {
 		t.Fatalf("Read() = %#v", row)
 	}
 	readMap := map[string]any{"id": 1}
-	if rows := table.Reads(readMap); len(rows) != 2 || readMap[IsDeleted] != 0 {
+	if rows := table.Reads(readMap); len(rows) != 2 || !reflect.DeepEqual(readMap, map[string]any{"id": 1}) {
 		t.Fatalf("Reads() rows=%#v readMap=%#v", rows, readMap)
+	}
+	crudMu.Lock()
+	lastReadQuery := crudQueries[len(crudQueries)-1]
+	crudMu.Unlock()
+	if strings.Contains(lastReadQuery, "is_deleted") {
+		t.Fatalf("Reads() query = %q, should not filter is_deleted", lastReadQuery)
 	}
 }
 
@@ -663,6 +669,12 @@ func TestDataBaseFindErrorAndNoHookSliceBranches(t *testing.T) {
 	var byID crudSaveModel
 	if err := db.Find(&byID, 1); err != nil {
 		t.Fatalf("Find generated query currently suppresses query error = %v", err)
+	}
+	crudMu.Lock()
+	lastFindQuery := crudQueries[len(crudQueries)-1]
+	crudMu.Unlock()
+	if strings.Contains(lastFindQuery, "is_deleted") {
+		t.Fatalf("Find generated query = %q, should not filter is_deleted", lastFindQuery)
 	}
 	crudMu.Lock()
 	crudQueryErr = nil

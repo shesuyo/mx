@@ -309,17 +309,6 @@ func (t *Table) Delete(m map[string]any) (int, error) {
 		return 0, ErrNoDeleteKey
 	}
 	ks, vs := ksvs(m, " = ? ")
-	t.mm.RLock()
-	cols := t.tableColumns[t.tableName]
-	t.mm.RUnlock()
-	if cols.HaveColumn(IsDeleted) {
-		setParts := []string{"is_deleted = '1'"}
-		if cols.HaveColumn("deleted_at") {
-			setParts = append(setParts, fmt.Sprintf("deleted_at = '%s'", time.Now().Format(TimeFormat)))
-		}
-		af, err := t.Exec(fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", t.tableName, strings.Join(setParts, ", "), strings.Join(ks, "AND")), vs...).RowsAffected()
-		return int(af), err
-	}
 	af, err := t.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.tableName, strings.Join(ks, "AND")), vs...).RowsAffected()
 	return int(af), err
 }
@@ -404,12 +393,6 @@ func (t *Table) Read(m map[string]any) RowMap {
 
 // Reads 查找多条数据
 func (t *Table) Reads(m map[string]any) RowsMap {
-	t.mm.RLock()
-	cols := t.tableColumns[t.tableName]
-	t.mm.RUnlock()
-	if cols.HaveColumn(IsDeleted) {
-		m[IsDeleted] = 0
-	}
 	//SELECT * FROM address WHERE id = 1 AND uid = 27
 	ks, vs := ksvs(m, " = ? ")
 	return t.Query(fmt.Sprintf("SELECT * FROM %s WHERE %s", t.tableName, strings.Join(ks, "AND")), vs...).RowsMap()

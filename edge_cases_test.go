@@ -628,16 +628,16 @@ func TestExtraTableCreateOrUpdateReadAndDateBranches(t *testing.T) {
 	if got, err := hardDelete.Delete(map[string]any{"id": 1}); err != nil || got != 2 {
 		t.Fatalf("hard Delete = %d, %v; want 2, nil", got, err)
 	}
-	softDeleteNoDeletedAt := db.Table("soft_only")
-	db.tableColumns["soft_only"] = Columns{"id": {Name: "id"}, IsDeleted: {Name: IsDeleted}}
-	if got, err := softDeleteNoDeletedAt.Delete(map[string]any{"id": 1}); err != nil || got != 2 {
-		t.Fatalf("soft Delete without deleted_at = %d, %v; want 2, nil", got, err)
+	db.tableColumns["legacy_is_deleted"] = Columns{"id": {Name: "id"}, "is_deleted": {Name: "is_deleted"}}
+	legacyIsDeleted := db.Table("legacy_is_deleted")
+	if got, err := legacyIsDeleted.Delete(map[string]any{"id": 1}); err != nil || got != 2 {
+		t.Fatalf("Delete with ordinary is_deleted field = %d, %v; want 2, nil", got, err)
 	}
 	crudMu.Lock()
 	lastExec := crudExecs[len(crudExecs)-1]
 	crudMu.Unlock()
-	if strings.Contains(lastExec, "deleted_at") {
-		t.Fatalf("soft Delete without deleted_at query = %q, should not update deleted_at", lastExec)
+	if !strings.HasPrefix(lastExec, "DELETE FROM `legacy_is_deleted`") {
+		t.Fatalf("Delete with ordinary is_deleted field query = %q, want physical delete", lastExec)
 	}
 
 	// Search 为空时 Clone 会补一个新的 Search，避免后续链式调用空指针。

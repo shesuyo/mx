@@ -367,12 +367,12 @@ func TestTableBatchDebugCountAndEachAddTableString(t *testing.T) {
 	// 当天和早于当天的条件包含当前日期，断言 SQL 形状和日期参数即可。
 	todayQuery, todayArgs := table.WhereToday("created_at").Parse()
 	wantToday := time.Now().Format("2006-01-02")
-	if !strings.Contains(todayQuery, "created_at >=") || !strings.Contains(todayQuery, "created_at <") || len(todayArgs) != 1 {
+	if !strings.Contains(todayQuery, "created_at >=") || !strings.Contains(todayQuery, "created_at <") || len(todayArgs) != 0 {
 		t.Fatalf("WhereToday query=%q args=%#v", todayQuery, todayArgs)
 	}
 	beforeQuery, beforeArgs := table.WhereBeforeToday("created_at").Parse()
-	if beforeQuery != "SELECT * FROM `user` WHERE DATE_FORMAT(created_at,'%Y-%m-%d') < ? AND user.is_deleted = ?" ||
-		!reflect.DeepEqual(beforeArgs, []any{wantToday, 0}) {
+	if beforeQuery != "SELECT * FROM `user` WHERE DATE_FORMAT(created_at,'%Y-%m-%d') < ?" ||
+		!reflect.DeepEqual(beforeArgs, []any{wantToday}) {
 		t.Fatalf("WhereBeforeToday query=%q args=%#v", beforeQuery, beforeArgs)
 	}
 
@@ -500,7 +500,7 @@ func TestTableFullMemberCreatesAndDeletesMissingMembers(t *testing.T) {
 
 	var sawDelete, sawCreate bool
 	for _, query := range execs {
-		if strings.Contains(query, "UPDATE `user` SET is_deleted") {
+		if strings.Contains(query, "DELETE FROM `user`") {
 			sawDelete = true
 		}
 		if strings.Contains(query, "INSERT INTO `user`") {

@@ -594,13 +594,6 @@ func (db *DataBase) Find(obj any, args ...any) error {
 			}
 		}
 
-		db.mm.RLock()
-		cols := db.tableColumns[tableName]
-		db.mm.RUnlock()
-		if cols.HaveColumn(IsDeleted) {
-			where += " AND is_deleted = 0"
-		}
-
 		err := db.Query(fmt.Sprintf("SELECT * FROM `%s` %s", tableName, where), args[1:]...).Find(obj)
 		if err != nil {
 			return err

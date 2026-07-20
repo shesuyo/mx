@@ -360,6 +360,24 @@ func TestParse(t *testing.T) {
 	t.Logf("Parsed args: %v", args)
 }
 
+func TestIsDeletedIsOrdinaryField(t *testing.T) {
+	table := requireUserColumns(t, "is_deleted")
+
+	row := table.WhereID(6).RowMap()
+	if row.NotFound() || row["is_deleted"] != "1" {
+		t.Fatalf("query should not implicitly filter is_deleted: %#v", row)
+	}
+
+	conditions := map[string]any{"id": 6}
+	row = table.Read(conditions)
+	if row.NotFound() || row["is_deleted"] != "1" {
+		t.Fatalf("Read should treat is_deleted as an ordinary field: %#v", row)
+	}
+	if _, ok := conditions["is_deleted"]; ok {
+		t.Fatalf("Read mutated conditions with is_deleted: %#v", conditions)
+	}
+}
+
 // TestExplain 测试 Explain 方法
 func TestExplain(t *testing.T) {
 	requireIntegrationUserTable(t)
@@ -439,6 +457,9 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Delete failed: %v", err)
 	} else {
 		t.Logf("Delete affected %d rows", affected)
+	}
+	if remaining := UserTable.Query("SELECT COUNT(*) FROM `user` WHERE id = ?", id).Int(); remaining != 0 {
+		t.Fatalf("Delete should physically remove the row, remaining=%d", remaining)
 	}
 }
 

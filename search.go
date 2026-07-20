@@ -273,14 +273,6 @@ func (s *Search) Parse() (string, []any) {
 	)
 	fieldList := append([]string(nil), s.fields...)
 	whereConditions := append([]WhereCon(nil), s.whereConditions...)
-	s.table.mm.RLock()
-	cols := s.table.tableColumns[s.tableName]
-	s.table.mm.RUnlock()
-	if cols.HaveColumn(IsDeleted) {
-		// 这里用局部副本拼接条件，避免 Parse 被多次调用时反复污染原始 Search 状态。
-
-		whereConditions = append(whereConditions, WhereCon{Query: s.table.Name() + ".is_deleted = ?", Args: []any{0}})
-	}
 	s.query = ""
 	s.args = []any{}
 	if len(fieldList) == 0 {

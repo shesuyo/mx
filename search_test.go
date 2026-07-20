@@ -56,32 +56,41 @@ func TestSearchParseBuildsExpectedSQL(t *testing.T) {
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Fatalf("Parse args = %#v, want %#v", args, wantArgs)
 	}
+
 }
 
-func TestSearchParseAddsSoftDeleteCondition(t *testing.T) {
-	table := newUnitTable("user", "id", IsDeleted)
+func TestSearchParseDoesNotFilterIsDeleted(t *testing.T) {
+	table := newUnitTable("user", "id", "is_deleted")
 
 	query, args := table.WhereID(7).Parse()
 
-	wantQuery := "SELECT * FROM `user` WHERE user.id = ? AND user.is_deleted = ?"
-	wantArgs := []any{7, 0}
+	wantQuery := "SELECT * FROM `user` WHERE user.id = ?"
+	wantArgs := []any{7}
 	if query != wantQuery {
 		t.Fatalf("Parse query = %q, want %q", query, wantQuery)
 	}
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Fatalf("Parse args = %#v, want %#v", args, wantArgs)
 	}
+
+	assertParsed(
+		t,
+		table.Where("is_deleted = ?", 1),
+		"SELECT * FROM `user` WHERE is_deleted = ?",
+		[]any{1},
+	)
+	assertParsed(t, table.Fields("is_deleted"), "SELECT `user`.`is_deleted` FROM `user`", nil)
 }
 
 func TestSearchParseIsStableAcrossCalls(t *testing.T) {
-	table := newUnitTable("user", "id", IsDeleted)
+	table := newUnitTable("user", "id", "is_deleted")
 	search := table.Where("id = ?", 7).Search
 
 	query1, args1 := search.Parse()
 	query2, args2 := search.Parse()
 
-	wantQuery := "SELECT * FROM `user` WHERE id = ? AND user.is_deleted = ?"
-	wantArgs := []any{7, 0}
+	wantQuery := "SELECT * FROM `user` WHERE id = ?"
+	wantArgs := []any{7}
 	if query1 != wantQuery {
 		t.Fatalf("first Parse query = %q, want %q", query1, wantQuery)
 	}
@@ -346,7 +355,7 @@ func TestSearchExplicitJoinTableNameAndFieldWrapping(t *testing.T) {
 
 func TestTableWhereHelpersBuildExpectedSQL(t *testing.T) {
 	table := newUnitTableWithDB("user", map[string][]string{
-		"user": {"id", "name", "created_at", "age", IsDeleted},
+		"user": {"id", "name", "created_at", "age", "is_deleted"},
 	})
 
 	tests := []struct {
@@ -358,116 +367,116 @@ func TestTableWhereHelpersBuildExpectedSQL(t *testing.T) {
 		{
 			name:      "WhereNotEmpty empty keeps original",
 			table:     table.WhereNotEmpty("name = ?", ""),
-			wantQuery: "SELECT * FROM `user` WHERE user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT * FROM `user`",
+			wantArgs:  nil,
 		},
 		{
 			name:      "WhereNotEmpty value",
 			table:     table.WhereNotEmpty("name = ?", "alice"),
-			wantQuery: "SELECT * FROM `user` WHERE name = ? AND user.is_deleted = ?",
-			wantArgs:  []any{"alice", 0},
+			wantQuery: "SELECT * FROM `user` WHERE name = ?",
+			wantArgs:  []any{"alice"},
 		},
 		{
 			name:      "WhereTime empty",
 			table:     table.WhereTime("created_at", Time{}),
-			wantQuery: "SELECT * FROM `user` WHERE user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT * FROM `user`",
+			wantArgs:  nil,
 		},
 		{
 			name:      "WhereTime day and time",
 			table:     table.WhereTime("created_at", Time{Day: "2026-05-13", Stime: "08:00", Etime: "10:00"}),
-			wantQuery: "SELECT * FROM `user` WHERE created_at >= ? AND created_at <= ? AND DATE_FORMAT(created_at,'%H:%i') >= ? AND DATE_FORMAT(created_at,'%H:%i') <= ? AND user.is_deleted = ?",
-			wantArgs:  []any{"2026-05-13 00:00:00", "2026-05-13 23:59:59", "08:00", "10:00", 0},
+			wantQuery: "SELECT * FROM `user` WHERE created_at >= ? AND created_at <= ? AND DATE_FORMAT(created_at,'%H:%i') >= ? AND DATE_FORMAT(created_at,'%H:%i') <= ?",
+			wantArgs:  []any{"2026-05-13 00:00:00", "2026-05-13 23:59:59", "08:00", "10:00"},
 		},
 		{
 			name:      "WherePeriod valid",
 			table:     table.WherePeriod("created_at", "2026-05", ""),
-			wantQuery: "SELECT * FROM `user` WHERE created_at >= ? AND created_at < ? AND user.is_deleted = ?",
-			wantArgs:  []any{"2026-05-01 00:00:00", "2026-06-01 00:00:00", 0},
+			wantQuery: "SELECT * FROM `user` WHERE created_at >= ? AND created_at < ?",
+			wantArgs:  []any{"2026-05-01 00:00:00", "2026-06-01 00:00:00"},
 		},
 		{
 			name:      "WherePeriod invalid",
 			table:     table.WherePeriod("created_at", "", ""),
-			wantQuery: "SELECT * FROM `user` WHERE user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT * FROM `user`",
+			wantArgs:  nil,
 		},
 		{
 			name:      "WhereStartEndDay",
 			table:     table.WhereStartEndDay("created_at", "2026-05-13", ""),
-			wantQuery: "SELECT * FROM `user` WHERE created_at >= ? AND created_at <= ? AND user.is_deleted = ?",
-			wantArgs:  []any{"2026-05-13 00:00:00", "2026-05-13 23:59:59", 0},
+			wantQuery: "SELECT * FROM `user` WHERE created_at >= ? AND created_at <= ?",
+			wantArgs:  []any{"2026-05-13 00:00:00", "2026-05-13 23:59:59"},
 		},
 		{
 			name:      "WhereStartEndMonth",
 			table:     table.WhereStartEndMonth("created_at", "2026-05", ""),
-			wantQuery: "SELECT * FROM `user` WHERE DATE_FORMAT(created_at,'%Y-%m') >= ? AND DATE_FORMAT(created_at,'%Y-%m') <= ? AND user.is_deleted = ?",
-			wantArgs:  []any{"2026-05", "2026-05", 0},
+			wantQuery: "SELECT * FROM `user` WHERE DATE_FORMAT(created_at,'%Y-%m') >= ? AND DATE_FORMAT(created_at,'%Y-%m') <= ?",
+			wantArgs:  []any{"2026-05", "2026-05"},
 		},
 		{
 			name:      "WhereStartEndTime",
 			table:     table.WhereStartEndTime("created_at", "08:30", ""),
-			wantQuery: "SELECT * FROM `user` WHERE DATE_FORMAT(created_at,'%H:%i') >= ? AND DATE_FORMAT(created_at,'%H:%i') <= ? AND user.is_deleted = ?",
-			wantArgs:  []any{"08:30", "08:30", 0},
+			wantQuery: "SELECT * FROM `user` WHERE DATE_FORMAT(created_at,'%H:%i') >= ? AND DATE_FORMAT(created_at,'%H:%i') <= ?",
+			wantArgs:  []any{"08:30", "08:30"},
 		},
 		{
 			name:      "WhereDay",
 			table:     table.WhereDay("created_at", "2026-05-13"),
-			wantQuery: "SELECT * FROM `user` WHERE (created_at >= '2026-05-13 00:00:00' AND created_at < '2026-05-14 00:00:00') AND user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT * FROM `user` WHERE (created_at >= '2026-05-13 00:00:00' AND created_at < '2026-05-14 00:00:00')",
+			wantArgs:  nil,
 		},
 		{
 			name:      "WhereMonth",
 			table:     table.WhereMonth("created_at", "2026-05"),
-			wantQuery: "SELECT * FROM `user` WHERE (created_at >= '2026-05-01 00:00:00' AND created_at < '2026-06-01 00:00:00') AND user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT * FROM `user` WHERE (created_at >= '2026-05-01 00:00:00' AND created_at < '2026-06-01 00:00:00')",
+			wantArgs:  nil,
 		},
 		{
 			name:      "WhereLike empty",
 			table:     table.WhereLike("name", ""),
-			wantQuery: "SELECT * FROM `user` WHERE user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT * FROM `user`",
+			wantArgs:  nil,
 		},
 		{
 			name:      "WhereLike",
 			table:     table.WhereLike("name", "ali"),
-			wantQuery: "SELECT * FROM `user` WHERE name LIKE ? AND user.is_deleted = ?",
-			wantArgs:  []any{"%ali%", 0},
+			wantQuery: "SELECT * FROM `user` WHERE name LIKE ?",
+			wantArgs:  []any{"%ali%"},
 		},
 		{
 			name:      "WhereLikeLeft",
 			table:     table.WhereLikeLeft("name", "ali"),
-			wantQuery: "SELECT * FROM `user` WHERE name LIKE ? AND user.is_deleted = ?",
-			wantArgs:  []any{"%ali", 0},
+			wantQuery: "SELECT * FROM `user` WHERE name LIKE ?",
+			wantArgs:  []any{"%ali"},
 		},
 		{
 			name:      "WhereLikeRight",
 			table:     table.WhereLikeRight("name", "ali"),
-			wantQuery: "SELECT * FROM `user` WHERE name LIKE ? AND user.is_deleted = ?",
-			wantArgs:  []any{"ali%", 0},
+			wantQuery: "SELECT * FROM `user` WHERE name LIKE ?",
+			wantArgs:  []any{"ali%"},
 		},
 		{
 			name:      "InWhere",
 			table:     table.InWhere("age", 9, 3, 7),
-			wantQuery: "SELECT * FROM `user` WHERE age >=? AND age <=? AND user.is_deleted = ?",
-			wantArgs:  []any{3, 9, 0},
+			wantQuery: "SELECT * FROM `user` WHERE age >=? AND age <=?",
+			wantArgs:  []any{3, 9},
 		},
 		{
 			name:      "Page clamps negative offset",
 			table:     table.Page(20, 0),
-			wantQuery: "SELECT * FROM `user` WHERE user.is_deleted = ? LIMIT ? OFFSET ?",
-			wantArgs:  []any{0, 20, 0},
+			wantQuery: "SELECT * FROM `user` LIMIT ? OFFSET ?",
+			wantArgs:  []any{20, 0},
 		},
 		{
 			name:      "FieldCount custom alias first token",
 			table:     table.FieldCount("num ignored"),
-			wantQuery: "SELECT COUNT(*) AS num FROM `user` WHERE user.is_deleted = ?",
-			wantArgs:  []any{0},
+			wantQuery: "SELECT COUNT(*) AS num FROM `user`",
+			wantArgs:  nil,
 		},
 		{
 			name:      "Group Having",
 			table:     table.Fields("age").Group("age").Having("COUNT(*) > ?", 2),
-			wantQuery: "SELECT `user`.`age` FROM `user` WHERE user.is_deleted = ? GROUP BY age HAVING COUNT(*) > ?",
-			wantArgs:  []any{0, 2},
+			wantQuery: "SELECT `user`.`age` FROM `user` GROUP BY age HAVING COUNT(*) > ?",
+			wantArgs:  []any{2},
 		},
 	}
 
