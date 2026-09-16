@@ -54,6 +54,8 @@ func main() {
 }
 ```
 
+MySQL 驱动支持 `tinyInt1IsBool` 时，`NewDataBase` 默认补充 `tinyInt1IsBool=false`，保持 `TINYINT(1)` 的数值行为；旧驱动不自动添加该参数。DSN 中显式设置的值优先。
+
 开启调试 SQL：
 
 ```go

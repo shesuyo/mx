@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	_ "github.com/go-sql-driver/mysql" //mysql driver
 )
 
 // 变量
@@ -137,6 +135,7 @@ func NewDataBase(dataSourceName string, confs ...Config) (*DataBase, error) {
 		return mx, nil
 	}
 
+	dataSourceName = mysqlDSNWithDefaults(dataSourceName)
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		return nil, err
